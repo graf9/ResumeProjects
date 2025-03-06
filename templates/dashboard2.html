@@ -9,58 +9,109 @@
         body {
             font-family: Arial, sans-serif;
             margin: 2rem;
+            background-color: #f9f9f9;
+            color: #333;
         }
         h1 {
             text-align: center;
             margin-bottom: 1rem;
-        }
-        .chart-section {
-            margin-bottom: 2rem;
-        }
-        .chart-description {
-            font-style: italic;
-            color: #555;
-        }
-        .metrics {
-            font-weight: bold;
-            color: #333;
-        }
-        .disclaimer {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 5px;
+            color: #004085;
         }
         .container {
             text-align: center;
             margin-bottom: 20px;
         }
         button {
-            padding: 10px 15px;
+            padding: 12px 18px;
             font-size: 16px;
             cursor: pointer;
             background-color: #007BFF;
             color: white;
             border: none;
             border-radius: 5px;
+            transition: 0.3s;
         }
         button:hover {
             background-color: #0056b3;
+        }
+        .disclaimer {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .chart-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .chart-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #343a40;
+        }
+        .chart-description {
+            font-style: italic;
+            color: #555;
+            margin-top: 8px;
+            font-size: 0.95rem;
+        }
+        .metrics {
+            font-weight: bold;
+            color: #007BFF;
+            font-size: 1rem;
+        }
+        .definitions {
+            background: #e9f5ff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        .definitions h2 {
+            font-size: 1.3rem;
+            color: #004085;
+        }
+        .definition-item {
+            margin-top: 10px;
+        }
+        .definition-item strong {
+            color: #0056b3;
         }
     </style>
 </head>
 <body>
     <h1>AI-Powered Economic Forecast Dashboard</h1>
-    <p><strong>Process Explanation:</strong> This dashboard fetches historical economic data from the FRED API (monthly frequency) for GDP, CPI, Unemployment, and PCE. It uses Prophet to generate five-year forecasts and displays Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE) for each prediction.</p>
+    <p><strong>How This Works:</strong> This dashboard retrieves real-world economic data from the Federal Reserve Economic Database (FRED) and applies **AI-based predictive modeling** (Prophet) to forecast trends for key economic indicators. It evaluates performance using **Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)** for accuracy assessment.</p>
     
     <div class="container">
         <button onclick="fetchAllForecasts()">Get Forecast</button>
         <p class="disclaimer">
-            <strong>Note:</strong> Every time you click "Get Forecast," the app fetches data, trains models, and generates forecasts.
-            This process may take up to 20 seconds.
+            <strong>Note:</strong> Every time you click "Get Forecast," the app fetches the latest data, trains AI models, and generates forecasts. 
+            This process may take up to **20 seconds**.
         </p>
     </div>
 
     <div class="chart-section" id="charts"></div>
+
+    <!-- Economic Definitions Section -->
+    <div class="definitions">
+        <h2>📌 Economic Indicators Explained</h2>
+        <div class="definition-item">
+            <strong>📊 Gross Domestic Product (GDP):</strong> The total value of all goods and services produced within a country's borders. A strong GDP growth rate signals a healthy economy.
+        </div>
+        <div class="definition-item">
+            <strong>📈 Consumer Price Index (CPI):</strong> Measures inflation by tracking changes in the price of a basket of consumer goods and services. Rising CPI means higher inflation.
+        </div>
+        <div class="definition-item">
+            <strong>📉 Unemployment Rate:</strong> The percentage of the total labor force that is jobless and actively seeking employment. A lower rate indicates a stronger job market.
+        </div>
+        <div class="definition-item">
+            <strong>💰 Personal Consumption Expenditures (PCE):</strong> Tracks consumer spending on goods and services, providing insight into household financial health and economic growth.
+        </div>
+    </div>
 
     <script>
         function fetchAllForecasts() {
@@ -77,6 +128,7 @@
                             
                             let title = document.createElement("h2");
                             title.textContent = indicator;
+                            title.classList.add("chart-title");
                             container.appendChild(title);
                             
                             let metrics = document.createElement("p");
@@ -87,11 +139,6 @@
                             let chartDiv = document.createElement("div");
                             chartDiv.id = `chart${indicator}`;
                             container.appendChild(chartDiv);
-                            
-                            let definition = document.createElement("p");
-                            definition.classList.add("chart-description");
-                            definition.innerHTML = getDefinition(indicator);
-                            container.appendChild(definition);
                             
                             document.getElementById('charts').appendChild(container);
 
@@ -113,16 +160,6 @@
                     });
                 })
                 .catch(error => console.error("Error fetching forecasts:", error));
-        }
-
-        function getDefinition(indicator) {
-            const definitions = {
-                "GDP": "Gross Domestic Product (GDP) measures the total value of all goods and services produced within a country's borders. It is a key indicator of economic health.",
-                "CPI": "The Consumer Price Index (CPI) measures the average change in prices paid by consumers for goods and services over time, serving as a primary gauge of inflation.",
-                "Unemployment": "The Unemployment Rate represents the percentage of the total workforce that is unemployed but actively seeking work. It is a key measure of labor market health.",
-                "PCE": "Personal Consumption Expenditures (PCE) measure consumer spending on goods and services. It is a critical indicator of economic activity and inflation trends."
-            };
-            return definitions[indicator] || "No definition available.";
         }
     </script>
 </body>
