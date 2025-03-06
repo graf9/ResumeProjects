@@ -1,3 +1,13 @@
+"""
+US Economic Historical Dashboard
+
+Description:
+    - A Flask-based web application that fetches historical economic data from the FRED API.
+    - Uses Plotly (Express and Graph Objects) to generate interactive charts.
+    - Displays key metrics and charts for several U.S. economic indicators.
+    - Provides a dual-axis comparison chart (GDP vs. CPI).
+"""
+
 import requests
 import pandas as pd
 import plotly.express as px
@@ -64,7 +74,7 @@ def get_fred_data(series_id, start_date, end_date):
 def create_figures(end_date):
     figs = {}
 
-    # 1. UNRATE: Unemployment Rate (default start)
+    # 1. UNRATE: Unemployment Rate
     df_unrate = get_fred_data('UNRATE', DEFAULT_START, end_date)
     fig_unrate = px.line(
         df_unrate,
@@ -79,9 +89,8 @@ def create_figures(end_date):
         fig_unrate.update_layout(xaxis=dict(range=[df_unrate['date'].min(), df_unrate['date'].max()]))
     figs['unrate'] = fig_unrate
 
-    # 2. GDPC1: Real GDP (convert from billions to trillions)
+    # 2. GDPC1: Real GDP (converted from billions to trillions)
     df_gdp = get_fred_data('GDPC1', DEFAULT_START, end_date)
-    # Convert GDP values from billions to trillions.
     if not df_gdp.empty:
         df_gdp['value'] = df_gdp['value'] / 1000
     fig_gdp = px.line(
@@ -116,7 +125,7 @@ def create_figures(end_date):
         )
     figs['cpi'] = fig_cpi
 
-    # 4. FEDFUNDS: Federal Funds Rate (default start)
+    # 4. FEDFUNDS: Federal Funds Rate
     df_fed = get_fred_data('FEDFUNDS', DEFAULT_START, end_date)
     fig_fed = px.line(
         df_fed,
@@ -150,7 +159,7 @@ def create_figures(end_date):
         )
     figs['indpro'] = fig_indpro
 
-    # 6. PCE: Personal Consumption Expenditures (default start)
+    # 6. PCE: Personal Consumption Expenditures
     df_pce = get_fred_data('PCE', DEFAULT_START, end_date)
     fig_pce = px.line(
         df_pce,
@@ -165,7 +174,7 @@ def create_figures(end_date):
         fig_pce.update_layout(xaxis=dict(range=[df_pce['date'].min(), df_pce['date'].max()]))
     figs['pce'] = fig_pce
 
-    # 7. M2SL: M2 Money Stock (default start)
+    # 7. M2SL: M2 Money Stock
     df_m2 = get_fred_data('M2SL', DEFAULT_START, end_date)
     fig_m2 = px.scatter(
         df_m2,
@@ -190,7 +199,6 @@ def create_figures(end_date):
     df_gdp_q['date'] = df_gdp_q['quarter'].dt.to_timestamp(how='end')
     df_gdp_q.drop(columns='quarter', inplace=True)
     df_gdp_q.rename(columns={'value': 'gdp'}, inplace=True)
-    # Convert GDP from billions to trillions.
     df_gdp_q['gdp'] = df_gdp_q['gdp'] / 1000
 
     # Convert CPI to quarterly.
@@ -252,7 +260,6 @@ def dashboard():
     if not df_unrate.empty:
         metrics['Unemployment Rate'] = f"{df_unrate.iloc[-1]['value']:.1f}%"
     if not df_gdp.empty:
-        # Convert GDP to trillions.
         metrics['Real GDP'] = f"${df_gdp.iloc[-1]['value'] / 1000:,.1f}T"
     if not df_cpi.empty:
         metrics['CPI'] = f"{df_cpi.iloc[-1]['value']:.1f}"
@@ -260,7 +267,6 @@ def dashboard():
         metrics['Fed Funds Rate'] = f"{df_fed.iloc[-1]['value']:.2f}%"
     if not df_m2.empty:
         metrics['M2 Money Stock'] = f"${df_m2.iloc[-1]['value'] / 1000:,.1f}T"
-
 
     # Define descriptions for each chart.
     descriptions = {
