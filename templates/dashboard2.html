@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Ensures mobile devices render at their native width -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Economic Forecast Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 2rem;
+      margin: 1rem;
       background-color: #e9ecef;
       text-align: center;
     }
@@ -30,17 +31,23 @@
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      max-width: 95%;
+      margin: 20px auto;
+    }
+    @media (max-width: 600px) {
+      h2 {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
 <body>
   <button onclick="fetchAllForecasts()">Load Latest Forecasts</button>
   <div id="charts"></div>
+
   <script>
-    // Date range for the last 10 years
-    const tenYearsAgo = new Date();
-    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-    const startDate = tenYearsAgo.toISOString().split("T")[0];
+    // Fixed start date: January 1, 2000
+    const startDate = '2000-01-01';
 
     // "Today" marker
     const todayDate = new Date();
@@ -52,29 +59,34 @@
         .then(data => {
           const chartsContainer = document.getElementById('charts');
           chartsContainer.innerHTML = '';
+
           Object.keys(data).forEach(indicator => {
             if (data[indicator].error) {
               chartsContainer.innerHTML += `<p style='color:red;'>${data[indicator].error}</p>`;
             } else {
-              let container = document.createElement("div");
+              // Create a chart container
+              const container = document.createElement("div");
               container.classList.add("chart-section");
-              
-              let title = document.createElement("h2");
+
+              // Title (no "Forecast" text)
+              const title = document.createElement("h2");
               title.textContent = indicator;
               container.appendChild(title);
-              
-              let metrics = document.createElement("p");
+
+              // Error metrics
+              const metrics = document.createElement("p");
               metrics.innerHTML = `<strong>MAE:</strong> ${data[indicator].MAE} | <strong>RMSE:</strong> ${data[indicator].RMSE}`;
               container.appendChild(metrics);
-              
-              let chartDiv = document.createElement("div");
+
+              // Chart div
+              const chartDiv = document.createElement("div");
               chartDiv.id = `chart${indicator}`;
               container.appendChild(chartDiv);
-              
+
               chartsContainer.appendChild(container);
 
               // Confidence intervals
-              let traceLower = {
+              const traceLower = {
                 x: data[indicator].dates,
                 y: data[indicator].lower,
                 type: 'scatter',
@@ -84,17 +96,18 @@
                 hoverinfo: 'skip'
               };
 
-              let traceForecast = {
+              const traceForecast = {
                 x: data[indicator].dates,
                 y: data[indicator].forecast,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Forecast',
+                // No legend name to remove "Forecast" label
+                name: '',
                 line: { color: '#1f77b4' },
                 hovertemplate: 'Date: %{x}<br>Value: %{y:.2f}<extra></extra>'
               };
 
-              let traceUpper = {
+              const traceUpper = {
                 x: data[indicator].dates,
                 y: data[indicator].upper,
                 type: 'scatter',
@@ -106,27 +119,33 @@
                 hoverinfo: 'skip'
               };
 
-              let endDate = data[indicator].dates[data[indicator].dates.length - 1];
+              const endDate = data[indicator].dates[data[indicator].dates.length - 1];
 
               // Determine y-axis label
               let yLabel = 'Value';
               if (indicator === 'GDP' || indicator === 'PCE') {
-                yLabel = 'Trillions of Dollars';  // scaled from billions
+                yLabel = 'Trillions of Dollars'; // scaled from billions
               } else if (indicator === 'Unemployment') {
                 yLabel = 'Percent';
               } else if (indicator === 'CPI') {
                 yLabel = 'Index';
               }
 
-              // Layout with "today" marker
-              let layout = {
-                title: `${indicator} Forecast`,
+              // Layout with "today" marker, y-axis starts at 0
+              const layout = {
+                title: {
+                  text: indicator,
+                  font: { size: 18 }
+                },
                 xaxis: { 
                   title: 'Date',
                   range: [startDate, endDate],
                   type: 'date'
                 },
-                yaxis: { title: yLabel, autorange: true },
+                yaxis: {
+                  title: yLabel,
+                  rangemode: 'tozero', // Ensures the axis starts at 0
+                },
                 margin: { t: 50, b: 50, l: 50, r: 50 },
                 shapes: [
                   {
@@ -146,7 +165,13 @@
                 ]
               };
 
-              Plotly.newPlot(`chart${indicator}`, [traceLower, traceForecast, traceUpper], layout, {responsive: true});
+              Plotly.newPlot(`chart${indicator}`, [traceLower, traceForecast, traceUpper], layout, { responsive: true })
+                .then(() => {
+                  // Optional: Re-size on window change
+                  window.addEventListener('resize', () => {
+                    Plotly.Plots.resize(chartDiv);
+                  });
+                });
             }
           });
         })
