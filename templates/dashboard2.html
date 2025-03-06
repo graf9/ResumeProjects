@@ -1,166 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Economic Forecast Dashboard</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2rem;
-            background-color: #f9f9f9;
-            color: #333;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 1rem;
-            color: #004085;
-        }
-        .container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 12px 18px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .disclaimer {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 8px;
-            font-style: italic;
-        }
-        .chart-section {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-        .chart-title {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: #343a40;
-        }
-        .chart-description {
-            font-style: italic;
-            color: #555;
-            margin-top: 8px;
-            font-size: 0.95rem;
-        }
-        .metrics {
-            font-weight: bold;
-            color: #007BFF;
-            font-size: 1rem;
-        }
-        .definitions {
-            background: #e9f5ff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.05);
-            margin-top: 20px;
-        }
-        .definitions h2 {
-            font-size: 1.3rem;
-            color: #004085;
-        }
-        .definition-item {
-            margin-top: 10px;
-        }
-        .definition-item strong {
-            color: #0056b3;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Economic Forecast Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background-color: #e9ecef;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #28a745;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .chart-section {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  </style>
 </head>
 <body>
-    <h1>AI-Powered Economic Forecast Dashboard</h1>
-    <p><strong>How This Works:</strong> This dashboard retrieves real-world economic data from the Federal Reserve Economic Database (FRED) and applies **AI-based predictive modeling** (Prophet) to forecast trends for key economic indicators. It evaluates performance using **Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)** for accuracy assessment.</p>
-    
-    <div class="container">
-        <button onclick="fetchAllForecasts()">Get Forecast</button>
-        <p class="disclaimer">
-            <strong>Note:</strong> Every time you click "Get Forecast," the app fetches the latest data, trains AI models, and generates forecasts. 
-            This process may take up to **20 seconds**.
-        </p>
-    </div>
+  <button onclick="fetchAllForecasts()">Load Latest Forecasts</button>
+  <div id="charts"></div>
+  <script>
+    // Date range for the last 10 years
+    const tenYearsAgo = new Date();
+    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+    const startDate = tenYearsAgo.toISOString().split("T")[0];
 
-    <div class="chart-section" id="charts"></div>
+    // "Today" marker
+    const todayDate = new Date();
+    const todayStr = todayDate.toISOString().split("T")[0];
 
-    <!-- Economic Definitions Section -->
-    <div class="definitions">
-        <h2>📌 Economic Indicators Explained</h2>
-        <div class="definition-item">
-            <strong>📊 Gross Domestic Product (GDP):</strong> The total value of all goods and services produced within a country's borders. A strong GDP growth rate signals a healthy economy.
-        </div>
-        <div class="definition-item">
-            <strong>📈 Consumer Price Index (CPI):</strong> Measures inflation by tracking changes in the price of a basket of consumer goods and services. Rising CPI means higher inflation.
-        </div>
-        <div class="definition-item">
-            <strong>📉 Unemployment Rate:</strong> The percentage of the total labor force that is jobless and actively seeking employment. A lower rate indicates a stronger job market.
-        </div>
-        <div class="definition-item">
-            <strong>💰 Personal Consumption Expenditures (PCE):</strong> Tracks consumer spending on goods and services, providing insight into household financial health and economic growth.
-        </div>
-    </div>
+    function fetchAllForecasts() {
+      fetch("/all_forecasts")
+        .then(response => response.json())
+        .then(data => {
+          const chartsContainer = document.getElementById('charts');
+          chartsContainer.innerHTML = '';
+          Object.keys(data).forEach(indicator => {
+            if (data[indicator].error) {
+              chartsContainer.innerHTML += `<p style='color:red;'>${data[indicator].error}</p>`;
+            } else {
+              let container = document.createElement("div");
+              container.classList.add("chart-section");
+              
+              let title = document.createElement("h2");
+              title.textContent = indicator;
+              container.appendChild(title);
+              
+              let metrics = document.createElement("p");
+              metrics.innerHTML = `<strong>MAE:</strong> ${data[indicator].MAE} | <strong>RMSE:</strong> ${data[indicator].RMSE}`;
+              container.appendChild(metrics);
+              
+              let chartDiv = document.createElement("div");
+              chartDiv.id = `chart${indicator}`;
+              container.appendChild(chartDiv);
+              
+              chartsContainer.appendChild(container);
 
-    <script>
-        function fetchAllForecasts() {
-            fetch("/all_forecasts")
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('charts').innerHTML = '';
-                    Object.keys(data).forEach(indicator => {
-                        if (data[indicator].error) {
-                            document.getElementById('charts').innerHTML += `<p style='color:red;'>${data[indicator].error}</p>`;
-                        } else {
-                            let container = document.createElement("div");
-                            container.classList.add("chart-section");
-                            
-                            let title = document.createElement("h2");
-                            title.textContent = indicator;
-                            title.classList.add("chart-title");
-                            container.appendChild(title);
-                            
-                            let metrics = document.createElement("p");
-                            metrics.classList.add("metrics");
-                            metrics.innerHTML = `<strong>MAE:</strong> ${data[indicator].MAE} | <strong>RMSE:</strong> ${data[indicator].RMSE}`;
-                            container.appendChild(metrics);
-                            
-                            let chartDiv = document.createElement("div");
-                            chartDiv.id = `chart${indicator}`;
-                            container.appendChild(chartDiv);
-                            
-                            document.getElementById('charts').appendChild(container);
+              // Confidence intervals
+              let traceLower = {
+                x: data[indicator].dates,
+                y: data[indicator].lower,
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'transparent' },
+                showlegend: false,
+                hoverinfo: 'skip'
+              };
 
-                            let trace = {
-                                x: data[indicator].dates,
-                                y: data[indicator].forecast,
-                                type: 'scatter',
-                                name: `${indicator} Forecast`
-                            };
-                            
-                            let layout = {
-                                title: `${indicator} Forecast`,
-                                xaxis: { title: 'Date', range: ['2020-01-01', data[indicator].dates[data[indicator].dates.length - 1]] },
-                                yaxis: { title: 'Value' }
-                            };
-                            
-                            Plotly.newPlot(`chart${indicator}`, [trace], layout);
-                        }
-                    });
-                })
-                .catch(error => console.error("Error fetching forecasts:", error));
-        }
-    </script>
+              let traceForecast = {
+                x: data[indicator].dates,
+                y: data[indicator].forecast,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Forecast',
+                line: { color: '#1f77b4' },
+                hovertemplate: 'Date: %{x}<br>Value: %{y:.2f}<extra></extra>'
+              };
+
+              let traceUpper = {
+                x: data[indicator].dates,
+                y: data[indicator].upper,
+                type: 'scatter',
+                mode: 'lines',
+                fill: 'tonexty',
+                fillcolor: 'rgba(31, 119, 180, 0.2)',
+                line: { color: 'transparent' },
+                showlegend: false,
+                hoverinfo: 'skip'
+              };
+
+              let endDate = data[indicator].dates[data[indicator].dates.length - 1];
+
+              // Determine y-axis label
+              let yLabel = 'Value';
+              if (indicator === 'GDP' || indicator === 'PCE') {
+                yLabel = 'Trillions of Dollars';  // scaled from billions
+              } else if (indicator === 'Unemployment') {
+                yLabel = 'Percent';
+              } else if (indicator === 'CPI') {
+                yLabel = 'Index';
+              }
+
+              // Layout with "today" marker
+              let layout = {
+                title: `${indicator} Forecast`,
+                xaxis: { 
+                  title: 'Date',
+                  range: [startDate, endDate],
+                  type: 'date'
+                },
+                yaxis: { title: yLabel, autorange: true },
+                margin: { t: 50, b: 50, l: 50, r: 50 },
+                shapes: [
+                  {
+                    type: 'line',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: todayStr,
+                    x1: todayStr,
+                    y0: 0,
+                    y1: 1,
+                    line: {
+                      color: 'red',
+                      width: 2,
+                      dash: 'dash'
+                    }
+                  }
+                ]
+              };
+
+              Plotly.newPlot(`chart${indicator}`, [traceLower, traceForecast, traceUpper], layout, {responsive: true});
+            }
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching forecasts:', error);
+          document.getElementById('charts').innerHTML = `<p style='color:red;'>Failed to load forecasts.</p>`;
+        });
+    }
+  </script>
 </body>
 </html>

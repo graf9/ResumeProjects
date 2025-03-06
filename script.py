@@ -2,21 +2,19 @@
 AI-Powered Economic Forecast Dashboard
 
 Description:
-    This Flask app demonstrates a multi-indicator economic forecast using:
-      - FRED for data retrieval
-      - Prophet for time-series modeling (monthly frequency, 5-year horizon)
-      - Plotly for interactive visualizations
-      - Inline HTML + minimal CSS for a polished presentation
-
-Ideal for portfolio or resume showcases.
+    - A Flask-based web application that provides interactive economic forecasts.
+    - Fetches economic data from the FRED API.
+    - Uses Prophet for time-series forecasting (monthly forecasts for 5 years).
+    - Visualizes forecasts using Plotly.
+    - Implements caching for improved performance.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, jsonify
 import pandas as pd
-import plotly.graph_objects as go
 from prophet import Prophet
 import requests
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+import datetime
 
 app = Flask(__name__)
 
@@ -26,76 +24,58 @@ app = Flask(__name__)
 API_KEY = "3baa2dc8f0187695b947741bb81a4673"
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 SERIES_MAP = {
-    "GDP": "GDP",               # Gross Domestic Product
-    "CPI": "CPIAUCSL",          # Consumer Price Index
-    "Unemployment": "UNRATE",   # Unemployment Rate
-    "PCE": "PCE"                # Personal Consumption Expenditures
+    "GDP": "GDP",
+    "CPI": "CPIAUCSL",
+    "Unemployment": "UNRATE",
+    "PCE": "PCE"
 }
 
-# ------------------------------------------------
-# Data Retrieval and Forecasting Helper Functions
-# ------------------------------------------------
-def get_fred_data(series_id):
-    """
-    Fetch monthly data from the FRED API for a given 'series_id'.
-    Returns a DataFrame with columns ['date', 'value'], sorted by date.
-    """
-    params = {
-        "series_id": series_id,
-        "api_key": API_KEY,
-        "file_type": "json"
-    }
-    response = requests.get(FRED_URL, params=params).json()
+# Cache to store forecasts
+cached_forecasts = {}
 
+def get_fred_data(series_id):
+    """Fetches economic data from the FRED API and scales GDP/PCE from billions to trillions."""
+    params = {"series_id": series_id, "api_key": API_KEY, "file_type": "json"}
+    response = requests.get(FRED_URL, params=params).json()
     if 'observations' in response:
         df = pd.DataFrame(response['observations'])
         df['date'] = pd.to_datetime(df['date'])
         df['value'] = pd.to_numeric(df['value'], errors='coerce')
-        df = df[['date', 'value']].dropna().sort_values('date')
-        return df
-    else:
-        return pd.DataFrame()
+
+        # Scale GDP and PCE from billions to trillions
+        if series_id in ["GDP", "PCE"]:
+            df['value'] = df['value'] / 1000.0  # e.g., 30000 -> 30
+
+        return df[['date', 'value']].dropna().sort_values('date')
+    return pd.DataFrame()
 
 def train_model(data):
-    """
-    Trains a Prophet model (monthly data, 5-year horizon).
-    Disables daily/weekly seasonality for a smoother trend.
-    Returns a forecast DataFrame with ['ds', 'yhat', 'yhat_lower', 'yhat_upper'].
-    """
+    """Trains a Prophet model and returns forecasts along with error metrics."""
     df = data.rename(columns={"date": "ds", "value": "y"})
-    model = Prophet(
-        daily_seasonality=False,
-        weekly_seasonality=False,
-        yearly_seasonality=True
-    )
+    model = Prophet(daily_seasonality=False, weekly_seasonality=False, yearly_seasonality=True)
     model.fit(df)
 
-    # 5-year forecast, monthly frequency
     future = model.make_future_dataframe(periods=60, freq='M')
     forecast = model.predict(future)
 
-    # Calculate MAE and RMSE
-    y_true = df['y'].values  # Actual values
-    y_pred = forecast['yhat'][:len(y_true)].values  # Prophet predictions
+    # Compute MAE and RMSE
+    y_true = df['y'].values
+    y_pred = forecast['yhat'][:len(y_true)].values
     mae = mean_absolute_error(y_true, y_pred)
-    rmse = mean_squared_error(y_true, y_pred) ** 0.5  # Compute RMSE manually
+    rmse = mean_squared_error(y_true, y_pred) ** 0.5
 
-    print(f"MAE: {mae:.4f}, RMSE: {rmse:.4f}")
-    
     return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']], mae, rmse
-
-@app.route('/')
-def home():
-    """
-    Redirects to the Dashboard (default homepage)
-    """
-    return dashboard()
 
 @app.route('/all_forecasts', methods=['GET'])
 def all_forecasts():
-    """
-    Returns a JSON object containing forecasts for ALL indicators + MAE/RMSE scores.
-    """
+    """Returns cached forecasts to improve performance."""
+    global cached_forecasts
+    today = datetime.date.today().isoformat()
+
+    # If we already fetched data today, use cache
+    if cached_forecasts and cached_forecasts.get('date') == today:
+        return jsonify(cached_forecasts["data"])
+
     results = {}
     for name, fred_id in SERIES_MAP.items():
         data = get_fred_data(fred_id)
@@ -111,22 +91,19 @@ def all_forecasts():
                 "MAE": round(mae, 4),
                 "RMSE": round(rmse, 4)
             }
+
+    cached_forecasts = {"date": today, "data": results}
     return jsonify(results)
 
-@app.route('/dashboard')
-def dashboard():
-    """
-    Renders the dashboard page with economic indicator descriptions.
-    """
-    descriptions = {
-        "GDP": "Gross Domestic Product measures the total monetary or market value of all the finished goods and services produced within a country's borders in a specific time period.",
-        "CPI": "The Consumer Price Index is a measure that examines the weighted average of prices of a basket of consumer goods and services.",
-        "Unemployment": "The unemployment rate represents the percentage of the labor force that is jobless but actively seeking employment.",
-        "PCE": "Personal Consumption Expenditures (PCE) tracks consumer spending on goods and services, reflecting changes in consumer behavior and inflationary pressures."
-    }
-    
-    return render_template('dashboard2.html', descriptions=descriptions)
+@app.route('/')
+def home():
+    """Renders the minimal dashboard for iframe embedding."""
+    return render_template('dashboard2.html')
 
+@app.route('/favicon.ico')
+def favicon():
+    return "", 204
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    # Debug mode on for local development
+    app.run(host='0.0.0.0', port=10000, debug=True)
