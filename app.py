@@ -92,7 +92,7 @@ def create_figures(end_date):
     # 2. GDPC1: Real GDP (converted from billions to trillions)
     df_gdp = get_fred_data('GDPC1', DEFAULT_START, end_date)
     if not df_gdp.empty:
-        df_gdp['value'] = df_gdp['value'] / 1000
+        df_gdp['value'] = df_gdp['value'] / 1000  # Convert billions to trillions.
     fig_gdp = px.line(
         df_gdp,
         x='date',
@@ -283,5 +283,6 @@ def dashboard():
     return render_template('dashboard.html', figs_html=figs_html, metrics=metrics, descriptions=descriptions)
 
 if __name__ == '__main__':
+    # For local development, run with debug mode.
     print("RUNNING UPDATED APP.PY!")
     app.run(debug=True)
