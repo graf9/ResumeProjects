@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Economic Forecast</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .chart-section {
+            margin-bottom: 2rem;
+        }
+        .chart-description {
+            font-style: italic;
+            color: #555;
+        }
+        .metrics {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI-Powered Economic Forecast</h1>
+    <p><strong>Process Explanation:</strong> This dashboard fetches historical economic data from the FRED API (monthly frequency) for GDP, CPI, Unemployment, and PCE. It uses Prophet to generate five-year forecasts and displays Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE) for each prediction.</p>
+    
+    <p><strong>What is MAE?</strong> Mean Absolute Error (MAE) measures the average magnitude of the errors in a set of predictions, without considering their direction. A lower MAE indicates a more accurate model.</p>
+    
+    <p><strong>What is RMSE?</strong> Root Mean Squared Error (RMSE) is a measure of the differences between predicted values and actual values. It penalizes larger errors more than MAE, making it useful when large errors need to be significantly reduced.</p>
+    
+    <button onclick="fetchAllForecasts()">Get Forecast</button>
+    
+    <div class="chart-section" id="charts"></div>
+
+    <script>
+        function fetchAllForecasts() {
+            fetch("/all_forecasts")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('charts').innerHTML = '';
+                    Object.keys(data).forEach(indicator => {
+                        if (data[indicator].error) {
+                            document.getElementById('charts').innerHTML += `<p style='color:red;'>${data[indicator].error}</p>`;
+                        } else {
+                            let container = document.createElement("div");
+                            container.classList.add("chart-section");
+                            
+                            let title = document.createElement("h2");
+                            title.textContent = indicator;
+                            container.appendChild(title);
+                            
+                            let metrics = document.createElement("p");
+                            metrics.classList.add("metrics");
+                            metrics.innerHTML = `<strong>MAE:</strong> ${data[indicator].MAE} | <strong>RMSE:</strong> ${data[indicator].RMSE}`;
+                            container.appendChild(metrics);
+                            
+                            let chartDiv = document.createElement("div");
+                            chartDiv.id = `chart${indicator}`;
+                            container.appendChild(chartDiv);
+                            
+                            let definition = document.createElement("p");
+                            definition.classList.add("chart-description");
+                            definition.innerHTML = getDefinition(indicator);
+                            container.appendChild(definition);
+                            
+                            document.getElementById('charts').appendChild(container);
+
+                            let trace = {
+                                x: data[indicator].dates,
+                                y: data[indicator].forecast,
+                                type: 'scatter',
+                                name: `${indicator} Forecast`
+                            };
+                            
+                            let layout = {
+                                title: `${indicator} Forecast`,
+                                xaxis: { title: 'Date', range: ['2020-01-01', data[indicator].dates[data[indicator].dates.length - 1]] },
+                                yaxis: { title: 'Value' }
+                            };
+                            
+                            Plotly.newPlot(`chart${indicator}`, [trace], layout);
+                        }
+                    });
+                })
+                .catch(error => console.error("Error fetching forecasts:", error));
+        }
+
+        function getDefinition(indicator) {
+            const definitions = {
+                "GDP": "Gross Domestic Product (GDP) measures the total value of all goods and services produced within a country's borders. It is a key indicator of economic health.",
+                "CPI": "The Consumer Price Index (CPI) measures the average change in prices paid by consumers for goods and services over time, serving as a primary gauge of inflation.",
+                "Unemployment": "The Unemployment Rate represents the percentage of the total workforce that is unemployed but actively seeking work. It is a key measure of labor market health.",
+                "PCE": "Personal Consumption Expenditures (PCE) measure consumer spending on goods and services. It is a critical indicator of economic activity and inflation trends."
+            };
+            return definitions[indicator] || "No definition available.";
+        }
+    </script>
+</body>
+</html>

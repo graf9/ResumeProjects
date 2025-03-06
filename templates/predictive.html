@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Analytics</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .metrics-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .metric {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .chart-container {
+            margin-bottom: 40px;
+        }
+    </style>
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <h1>Predictive Analytics Dashboard</h1>
+    <div class="metrics-container">
+        {% for key, value in metrics.items() %}
+            <div class="metric">
+                <p><strong>{{ 'Unemployment Rate' if key == 'UNRATE' else key }}</strong></p>
+                <p>Latest: {{ value.latest }}</p>
+                <p>Forecast: {{ value.forecast }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% for key, chart in charts.items() %}
+        <div class="chart-container">
+            <h2>{{ 'Unemployment Rate' if key == 'UNRATE' else key }} Forecast</h2>
+            {{ chart|safe }}
+        </div>
+    {% endfor %}
+
+    <div class="definitions">
+        <h2>Definitions</h2>
+        <ul>
+            <li><strong>GDP (Gross Domestic Product)</strong> - The total monetary value of all finished goods and services produced within a country’s borders in a specific time period.</li>
+            <li><strong>CPI (Consumer Price Index)</strong> - Measures the average change in prices paid by consumers for goods and services over time, indicating inflation trends.</li>
+            <li><strong>Unemployment Rate</strong> - The percentage of the labor force that is jobless and actively seeking employment.</li>
+            <li><strong>PCE (Personal Consumption Expenditures)</strong> - A measure of consumer spending on goods and services, often used to assess economic trends.</li>
+        </ul>
+    </div>
+</body>
+</html>
