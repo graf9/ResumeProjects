@@ -46,12 +46,10 @@
   <div id="charts"></div>
 
   <script>
-    // Fixed start date: January 1, 2000
-    const startDate = '2000-01-01';
-
-    // "Today" marker
-    const todayDate = new Date();
-    const todayStr = todayDate.toISOString().split("T")[0];
+    // Start date for the x-axis
+    const startDate = '2012-01-01';
+    // Today's date in ISO format
+    const todayStr = new Date().toISOString().split("T")[0];
 
     function fetchAllForecasts() {
       fetch("/all_forecasts")
@@ -64,11 +62,12 @@
             if (data[indicator].error) {
               chartsContainer.innerHTML += `<p style='color:red;'>${data[indicator].error}</p>`;
             } else {
-              // Create a chart container
+              // Create a container for each chart
               const container = document.createElement("div");
               container.classList.add("chart-section");
+              chartsContainer.appendChild(container);
 
-              // Title (no "Forecast" text)
+              // Title
               const title = document.createElement("h2");
               title.textContent = indicator;
               container.appendChild(title);
@@ -80,73 +79,72 @@
 
               // Chart div
               const chartDiv = document.createElement("div");
-              chartDiv.id = `chart${indicator}`;
               container.appendChild(chartDiv);
 
-              chartsContainer.appendChild(container);
+              // Separate historical vs. predictive
+              const allDates = data[indicator].dates;
+              const allValues = data[indicator].forecast;
+              let histDates = [], histValues = [];
+              let predDates = [], predValues = [];
+              allDates.forEach((d, i) => {
+                if (d <= todayStr) {
+                  histDates.push(d);
+                  histValues.push(allValues[i]);
+                } else {
+                  predDates.push(d);
+                  predValues.push(allValues[i]);
+                }
+              });
 
-              // Confidence intervals
-              const traceLower = {
-                x: data[indicator].dates,
-                y: data[indicator].lower,
+              // Two-line approach
+              const traceHistorical = {
+                x: histDates,
+                y: histValues,
                 type: 'scatter',
                 mode: 'lines',
-                line: { color: 'transparent' },
-                showlegend: false,
-                hoverinfo: 'skip'
+                name: 'Historical',
+                line: { color: '#1f77b4' }
               };
-
-              const traceForecast = {
-                x: data[indicator].dates,
-                y: data[indicator].forecast,
+              const tracePredictive = {
+                x: predDates,
+                y: predValues,
                 type: 'scatter',
                 mode: 'lines',
-                // No legend name to remove "Forecast" label
-                name: '',
-                line: { color: '#1f77b4' },
-                hovertemplate: 'Date: %{x}<br>Value: %{y:.2f}<extra></extra>'
+                name: 'Predictive',
+                line: { color: '#ff7f0e' }
               };
-
-              const traceUpper = {
-                x: data[indicator].dates,
-                y: data[indicator].upper,
-                type: 'scatter',
-                mode: 'lines',
-                fill: 'tonexty',
-                fillcolor: 'rgba(31, 119, 180, 0.2)',
-                line: { color: 'transparent' },
-                showlegend: false,
-                hoverinfo: 'skip'
-              };
-
-              const endDate = data[indicator].dates[data[indicator].dates.length - 1];
 
               // Determine y-axis label
               let yLabel = 'Value';
               if (indicator === 'GDP' || indicator === 'PCE') {
-                yLabel = 'Trillions of Dollars'; // scaled from billions
+                yLabel = 'Trillions of Dollars';
               } else if (indicator === 'Unemployment') {
                 yLabel = 'Percent';
               } else if (indicator === 'CPI') {
                 yLabel = 'Index';
               }
 
-              // Layout with "today" marker, y-axis starts at 0
+              // Layout with zero line off & auto-scale
+              const endDate = allDates[allDates.length - 1];
               const layout = {
-                title: {
-                  text: indicator,
-                  font: { size: 18 }
-                },
-                xaxis: { 
+                xaxis: {
                   title: 'Date',
                   range: [startDate, endDate],
-                  type: 'date'
+                  type: 'date',
+                  zeroline: false
                 },
                 yaxis: {
                   title: yLabel,
-                  rangemode: 'tozero', // Ensures the axis starts at 0
+                  zeroline: false,   // Removes the horizontal line at y=0
+                  autorange: true    // Let Plotly auto-scale instead of forcing 0
                 },
-                margin: { t: 50, b: 50, l: 50, r: 50 },
+                legend: {
+                  orientation: 'h',
+                  x: 0.5,
+                  xanchor: 'center',
+                  y: -0.2
+                },
+                margin: { t: 50, b: 80, l: 50, r: 50 },
                 shapes: [
                   {
                     type: 'line',
@@ -165,9 +163,9 @@
                 ]
               };
 
-              Plotly.newPlot(`chart${indicator}`, [traceLower, traceForecast, traceUpper], layout, { responsive: true })
+              // Plot
+              Plotly.newPlot(chartDiv, [traceHistorical, tracePredictive], layout, { responsive: true })
                 .then(() => {
-                  // Optional: Re-size on window change
                   window.addEventListener('resize', () => {
                     Plotly.Plots.resize(chartDiv);
                   });
