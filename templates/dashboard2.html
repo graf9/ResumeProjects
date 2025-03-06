@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Economic Forecast</title>
+    <title>AI Economic Forecast Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
@@ -25,18 +25,41 @@
             font-weight: bold;
             color: #333;
         }
+        .disclaimer {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        .container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
-    <h1>AI-Powered Economic Forecast</h1>
+    <h1>AI-Powered Economic Forecast Dashboard</h1>
     <p><strong>Process Explanation:</strong> This dashboard fetches historical economic data from the FRED API (monthly frequency) for GDP, CPI, Unemployment, and PCE. It uses Prophet to generate five-year forecasts and displays Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE) for each prediction.</p>
     
-    <p><strong>What is MAE?</strong> Mean Absolute Error (MAE) measures the average magnitude of the errors in a set of predictions, without considering their direction. A lower MAE indicates a more accurate model.</p>
-    
-    <p><strong>What is RMSE?</strong> Root Mean Squared Error (RMSE) is a measure of the differences between predicted values and actual values. It penalizes larger errors more than MAE, making it useful when large errors need to be significantly reduced.</p>
-    
-    <button onclick="fetchAllForecasts()">Get Forecast</button>
-    
+    <div class="container">
+        <button onclick="fetchAllForecasts()">Get Forecast</button>
+        <p class="disclaimer">
+            <strong>Note:</strong> Every time you click "Get Forecast," the app fetches data, trains models, and generates forecasts.
+            This process may take up to 20 seconds.
+        </p>
+    </div>
+
     <div class="chart-section" id="charts"></div>
 
     <script>
