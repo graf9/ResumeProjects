@@ -84,16 +84,17 @@ def train_model(data):
     
     return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']], mae, rmse
 
+@app.route('/')
+def home():
+    """
+    Redirects to the Dashboard (default homepage)
+    """
+    return dashboard()
+
 @app.route('/all_forecasts', methods=['GET'])
 def all_forecasts():
     """
-    Returns a JSON object containing forecasts for ALL indicators + MAE/RMSE scores:
-    {
-      "GDP": { "dates": [...], "forecast": [...], "lower": [...], "upper": [...], "MAE": value, "RMSE": value },
-      "CPI": { ... },
-      "Unemployment": { ... },
-      "PCE": { ... }
-    }
+    Returns a JSON object containing forecasts for ALL indicators + MAE/RMSE scores.
     """
     results = {}
     for name, fred_id in SERIES_MAP.items():
@@ -114,6 +115,9 @@ def all_forecasts():
 
 @app.route('/dashboard')
 def dashboard():
+    """
+    Renders the dashboard page with economic indicator descriptions.
+    """
     descriptions = {
         "GDP": "Gross Domestic Product measures the total monetary or market value of all the finished goods and services produced within a country's borders in a specific time period.",
         "CPI": "The Consumer Price Index is a measure that examines the weighted average of prices of a basket of consumer goods and services.",
@@ -125,4 +129,4 @@ def dashboard():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
