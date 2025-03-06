@@ -13,6 +13,14 @@
       background-color: #e9ecef;
       text-align: center;
     }
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+      flex-wrap: wrap; /* for responsiveness */
+    }
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -24,6 +32,28 @@
     }
     button:hover {
       background-color: #218838;
+    }
+    .disclaimer-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .disclaimer {
+      max-width: 300px;
+      text-align: left;
+      font-size: 14px;
+      color: #6c757d;
+      margin: 0;
+    }
+    .definitions-link {
+      font-size: 14px;
+      color: #007BFF;
+      font-weight: bold;
+      margin-top: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #007BFF;
+      border-radius: 4px;
+      background-color: #f0f8ff;
     }
     .chart-section {
       margin-top: 20px;
@@ -42,12 +72,22 @@
   </style>
 </head>
 <body>
-  <button onclick="fetchAllForecasts()">Load Latest Forecasts</button>
+  <!-- Controls container with button and separate definitions link -->
+  <div class="controls">
+    <button onclick="fetchAllForecasts()">Load Latest Forecasts</button>
+    <div class="disclaimer-container">
+      <p class="disclaimer">
+        Forecast loading may take up to 20 seconds due to data fetching and model training.<br>
+        Thank you for your patience.
+      </p>
+    </div>
+  </div>
+
   <div id="charts"></div>
 
   <script>
-    // Start date for the x-axis
-    const startDate = '2012-01-01';
+    // Fixed start date for the x-axis
+    const startDate = '2000-01-01';
     // Today's date in ISO format
     const todayStr = new Date().toISOString().split("T")[0];
 
@@ -67,7 +107,7 @@
               container.classList.add("chart-section");
               chartsContainer.appendChild(container);
 
-              // Title
+              // Title (indicator name)
               const title = document.createElement("h2");
               title.textContent = indicator;
               container.appendChild(title);
@@ -81,7 +121,7 @@
               const chartDiv = document.createElement("div");
               container.appendChild(chartDiv);
 
-              // Separate historical vs. predictive
+              // Split the dates & forecast values into historical and predictive arrays
               const allDates = data[indicator].dates;
               const allValues = data[indicator].forecast;
               let histDates = [], histValues = [];
@@ -96,7 +136,7 @@
                 }
               });
 
-              // Two-line approach
+              // Two traces: Historical (blue) and Predictive (orange)
               const traceHistorical = {
                 x: histDates,
                 y: histValues,
@@ -114,7 +154,7 @@
                 line: { color: '#ff7f0e' }
               };
 
-              // Determine y-axis label
+              // Determine y-axis label based on indicator
               let yLabel = 'Value';
               if (indicator === 'GDP' || indicator === 'PCE') {
                 yLabel = 'Trillions of Dollars';
@@ -124,7 +164,6 @@
                 yLabel = 'Index';
               }
 
-              // Layout with zero line off & auto-scale
               const endDate = allDates[allDates.length - 1];
               const layout = {
                 xaxis: {
@@ -135,8 +174,8 @@
                 },
                 yaxis: {
                   title: yLabel,
-                  zeroline: false,   // Removes the horizontal line at y=0
-                  autorange: true    // Let Plotly auto-scale instead of forcing 0
+                  zeroline: false,
+                  autorange: true
                 },
                 legend: {
                   orientation: 'h',
@@ -163,7 +202,6 @@
                 ]
               };
 
-              // Plot
               Plotly.newPlot(chartDiv, [traceHistorical, tracePredictive], layout, { responsive: true })
                 .then(() => {
                   window.addEventListener('resize', () => {
