@@ -161,13 +161,15 @@ def create_figures(end_date):
     # 5. INDPRO: Industrial Production (custom start: Sept 1997)
     indpro_start = CUSTOM_START_DATES.get("INDPRO", DEFAULT_START)
     df_indpro = get_fred_data('INDPRO', indpro_start, end_date)
-    fig_indpro = px.bar(
+    # Change from a bar chart to a line chart for better mobile responsiveness
+    fig_indpro = px.line(
         df_indpro,
         x='date',
         y='value',
         title='US Industrial Production Index',
         labels={'date': 'Date', 'value': 'Industrial Production Index'},
-        color_discrete_sequence=['#FFA15A']
+        markers=True,
+        color_discrete_sequence=['#2F4F4F']  # Dark Slate Gray (darker tone)
     )
     if not df_indpro.empty:
         max_indpro = df_indpro['value'].max()
@@ -194,7 +196,6 @@ def create_figures(end_date):
 
     # 7. M2SL: M2 Money Stock
     df_m2 = get_fred_data('M2SL', DEFAULT_START, end_date)
-    # Explicitly disable any trendline by setting trendline=None
     fig_m2 = px.scatter(
         df_m2,
         x='date',
@@ -278,7 +279,7 @@ def dashboard():
         metrics['Unemployment Rate'] = f"{df_unrate.iloc[-1]['value']:.1f}%"
 
     if not df_gdp.empty:
-        # Since we already scaled GDP to trillions in create_figures, do not divide again.
+        # Since GDP is already scaled to trillions in create_figures(), no extra division is needed.
         metrics['Real GDP'] = f"${df_gdp.iloc[-1]['value']:,.1f}T"
 
     if not df_cpi.empty:
@@ -288,7 +289,7 @@ def dashboard():
         metrics['Fed Funds Rate'] = f"{df_fed.iloc[-1]['value']:.2f}%"
 
     if not df_m2.empty:
-        # M2 is in billions; for a single-value display, you may choose to display in billions or convert to trillions.
+        # M2 is in billions; converting to trillions for display.
         metrics['M2 Money Stock'] = f"${df_m2.iloc[-1]['value'] / 1000:,.1f}T"
 
     if not df_indpro.empty:
