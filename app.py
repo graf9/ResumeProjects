@@ -110,7 +110,7 @@ def create_figures(end_date):
     # 2. GDPC1: Real GDP (converted from billions to trillions)
     df_gdp = get_fred_data('GDPC1', DEFAULT_START, end_date)
     if not df_gdp.empty:
-        df_gdp['value'] = df_gdp['value'] / 1000
+        df_gdp['value'] = df_gdp['value'] / 1000  # Now in trillions.
     fig_gdp = px.line(
         df_gdp,
         x='date',
@@ -194,13 +194,14 @@ def create_figures(end_date):
 
     # 7. M2SL: M2 Money Stock
     df_m2 = get_fred_data('M2SL', DEFAULT_START, end_date)
+    # Explicitly disable any trendline by setting trendline=None
     fig_m2 = px.scatter(
         df_m2,
         x='date',
         y='value',
         title='US M2 Money Stock',
         labels={'date': 'Date', 'value': 'M2 (Billions)'},
-        trendline=None,  # Explicitly disable trendline processing
+        trendline=None,
         color_discrete_sequence=['#FF6692']
     )
     if not df_m2.empty:
@@ -216,7 +217,7 @@ def create_figures(end_date):
     df_gdp_q['date'] = df_gdp_q['quarter'].dt.to_timestamp(how='end')
     df_gdp_q.drop(columns='quarter', inplace=True)
     df_gdp_q.rename(columns={'value': 'gdp'}, inplace=True)
-    df_gdp_q['gdp'] = df_gdp_q['gdp'] / 1000
+    df_gdp_q['gdp'] = df_gdp_q['gdp'] / 1000  # Convert to trillions
 
     df_cpi_q = df_cpi_dual.copy()
     df_cpi_q['quarter'] = df_cpi_q['date'].dt.to_period('Q')
@@ -263,23 +264,35 @@ def dashboard():
     figs_html = {name: fig.to_html(full_html=False, include_plotlyjs='cdn')
                  for name, fig in figs.items()}
 
-    metrics = {}
+    # Pull fresh data for single-value metrics
     df_unrate = get_fred_data('UNRATE', DEFAULT_START, DEFAULT_END)
     df_gdp    = get_fred_data('GDPC1', DEFAULT_START, DEFAULT_END)
     df_cpi    = get_fred_data('CPIAUCSL', CUSTOM_START_DATES.get("CPIAUCSL", DEFAULT_START), DEFAULT_END)
     df_fed    = get_fred_data('FEDFUNDS', DEFAULT_START, DEFAULT_END)
     df_m2     = get_fred_data('M2SL', DEFAULT_START, DEFAULT_END)
+    df_indpro = get_fred_data('INDPRO', CUSTOM_START_DATES.get("INDPRO", DEFAULT_START), DEFAULT_END)
+
+    metrics = {}
 
     if not df_unrate.empty:
         metrics['Unemployment Rate'] = f"{df_unrate.iloc[-1]['value']:.1f}%"
+
     if not df_gdp.empty:
-        metrics['Real GDP'] = f"${df_gdp.iloc[-1]['value'] / 1000:,.1f}T"
+        # Since we already scaled GDP to trillions in create_figures, do not divide again.
+        metrics['Real GDP'] = f"${df_gdp.iloc[-1]['value']:,.1f}T"
+
     if not df_cpi.empty:
         metrics['CPI'] = f"{df_cpi.iloc[-1]['value']:.1f}"
+
     if not df_fed.empty:
         metrics['Fed Funds Rate'] = f"{df_fed.iloc[-1]['value']:.2f}%"
+
     if not df_m2.empty:
+        # M2 is in billions; for a single-value display, you may choose to display in billions or convert to trillions.
         metrics['M2 Money Stock'] = f"${df_m2.iloc[-1]['value'] / 1000:,.1f}T"
+
+    if not df_indpro.empty:
+        metrics['Industrial Production'] = f"{df_indpro.iloc[-1]['value']:.1f}"
 
     return render_template('dashboard.html', figs_html=figs_html, metrics=metrics)
 
