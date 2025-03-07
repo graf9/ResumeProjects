@@ -1,22 +1,29 @@
 """
-US Economic Historical Dashboard
+US Economic Historical Dashboard (with caching, no descriptions, env port)
 
 Description:
     - A Flask-based web application that fetches historical economic data from the FRED API.
     - Uses Plotly (Express and Graph Objects) to generate interactive charts.
     - Displays key metrics and charts for several U.S. economic indicators.
     - Provides a dual-axis comparison chart (GDP vs. CPI).
+    - Implements an in-memory cache to reduce repeated FRED API calls.
+    - Binds to a port from the PORT environment variable (or 5000 by default).
 """
 
+import os
 import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from flask import Flask, render_template
 from datetime import datetime
-import plotly
 
 app = Flask(__name__)
+
+# ------------------------
+# Caching Setup
+# ------------------------
+cached_data = {}  # Cache keyed by (series_id, start_date, end_date).
 
 # Default start and end dates.
 DEFAULT_START = "1900-01-01"
@@ -33,16 +40,18 @@ DUAL_START_DATE = "1947-04-01"  # April 1947.
 
 def get_fred_data(series_id, start_date, end_date):
     """
-    Fetch data from FRED for the given series_id between start_date and end_date.
-    If desired end_date is after today's date, set realtime_end to "9999-12-31".
-    Deduplicate by date (keeping the last observation) and sort chronologically.
+    Fetch data from FRED for the given series_id between start_date and end_date,
+    caching the results in-memory to reduce repeated calls.
     """
+    cache_key = (series_id, start_date, end_date)
+    if cache_key in cached_data:
+        print(f"Using cached data for {series_id}")
+        return cached_data[cache_key]
+
     today_str = datetime.today().strftime('%Y-%m-%d')
     today = datetime.strptime(today_str, '%Y-%m-%d')
     desired_end = datetime.strptime(end_date, '%Y-%m-%d')
-    # If the desired end date is in the future or today, use "9999-12-31"
     realtime_end = "9999-12-31" if desired_end >= today else today_str
-
 
     url = (
         f'https://api.stlouisfed.org/fred/series/observations?'
@@ -54,23 +63,30 @@ def get_fred_data(series_id, start_date, end_date):
     response = requests.get(url)
     if response.status_code != 200:
         print(f"Error fetching {series_id}: {response.status_code} - {response.text}")
-        return pd.DataFrame()
+        df = pd.DataFrame()
+        cached_data[cache_key] = df
+        return df
+
     data = response.json()
     if "error_message" in data:
         print(f"Error in response for {series_id}: {data['error_message']}")
-        return pd.DataFrame()
+        df = pd.DataFrame()
+        cached_data[cache_key] = df
+        return df
+
     observations = data.get('observations', [])
     df = pd.DataFrame(observations)
     if df.empty:
         print(f"Warning: No data returned for {series_id}")
+        cached_data[cache_key] = df
         return df
 
     df['date'] = pd.to_datetime(df['date'])
     df['value'] = pd.to_numeric(df['value'], errors='coerce')
     df.dropna(subset=['value'], inplace=True)
-    # Group by date (to remove revisions) and sort.
     df = df.groupby('date', as_index=False)['value'].last().sort_values('date')
-    print(f"{series_id} dynamic date range: {df['date'].min()} to {df['date'].max()} | Rows: {len(df)}")
+    print(f"{series_id} date range: {df['date'].min()} to {df['date'].max()} | Rows: {len(df)}")
+    cached_data[cache_key] = df
     return df
 
 def create_figures(end_date):
@@ -94,7 +110,7 @@ def create_figures(end_date):
     # 2. GDPC1: Real GDP (converted from billions to trillions)
     df_gdp = get_fred_data('GDPC1', DEFAULT_START, end_date)
     if not df_gdp.empty:
-        df_gdp['value'] = df_gdp['value'] / 1000  # Convert billions to trillions.
+        df_gdp['value'] = df_gdp['value'] / 1000
     fig_gdp = px.line(
         df_gdp,
         x='date',
@@ -194,7 +210,6 @@ def create_figures(end_date):
     # 8. Dual-Axis: GDP vs. CPI (custom start: April 1947)
     df_gdp_dual = get_fred_data('GDPC1', DUAL_START_DATE, end_date)
     df_cpi_dual = get_fred_data('CPIAUCSL', DUAL_START_DATE, end_date)
-    # Convert GDP to quarterly and convert to trillions.
     df_gdp_q = df_gdp_dual.copy()
     df_gdp_q['quarter'] = df_gdp_q['date'].dt.to_period('Q')
     df_gdp_q = df_gdp_q.groupby('quarter', as_index=False)['value'].last()
@@ -203,7 +218,6 @@ def create_figures(end_date):
     df_gdp_q.rename(columns={'value': 'gdp'}, inplace=True)
     df_gdp_q['gdp'] = df_gdp_q['gdp'] / 1000
 
-    # Convert CPI to quarterly.
     df_cpi_q = df_cpi_dual.copy()
     df_cpi_q['quarter'] = df_cpi_q['date'].dt.to_period('Q')
     df_cpi_q = df_cpi_q.groupby('quarter', as_index=False)['value'].mean()
@@ -241,20 +255,17 @@ def create_figures(end_date):
         )
     figs['dual'] = fig_dual
 
-    print("DEBUG - final figs keys:", figs.keys())
     return figs
 
 @app.route('/')
 def dashboard():
-    # Create the figures using the default end date.
     figs = create_figures(DEFAULT_END)
     figs_html = {name: fig.to_html(full_html=False, include_plotlyjs='cdn')
                  for name, fig in figs.items()}
 
-    # Compute key metrics for selected series.
     metrics = {}
     df_unrate = get_fred_data('UNRATE', DEFAULT_START, DEFAULT_END)
-    df_gdp    = get_fred_data('GDPC1',  DEFAULT_START, DEFAULT_END)
+    df_gdp    = get_fred_data('GDPC1', DEFAULT_START, DEFAULT_END)
     df_cpi    = get_fred_data('CPIAUCSL', CUSTOM_START_DATES.get("CPIAUCSL", DEFAULT_START), DEFAULT_END)
     df_fed    = get_fred_data('FEDFUNDS', DEFAULT_START, DEFAULT_END)
     df_m2     = get_fred_data('M2SL', DEFAULT_START, DEFAULT_END)
@@ -270,21 +281,8 @@ def dashboard():
     if not df_m2.empty:
         metrics['M2 Money Stock'] = f"${df_m2.iloc[-1]['value'] / 1000:,.1f}T"
 
-    # Define descriptions for each chart.
-    descriptions = {
-        "unrate": "This chart displays the U.S. unemployment rate over time, reflecting the percentage of the labor force that is jobless.",
-        "gdp": "This chart shows U.S. Real GDP (in trillions) over time, representing the total economic output.",
-        "cpi": "This chart illustrates the U.S. Consumer Price Index, a key measure of inflation.",
-        "fed": "This chart tracks the Federal Funds Rate, the overnight rate at which banks lend to each other.",
-        "indpro": "This chart depicts the Industrial Production Index, measuring the output of the industrial sector.",
-        "pce": "This chart represents U.S. Personal Consumption Expenditures, a measure of consumer spending.",
-        "m2": "This chart shows the U.S. M2 Money Stock, a broad measure of the money supply (displayed in billions).",
-        "dual": "This dual-axis chart compares U.S. Real GDP (in trillions) and the Consumer Price Index (CPI) on a quarterly basis."
-    }
-
-    return render_template('dashboard.html', figs_html=figs_html, metrics=metrics, descriptions=descriptions)
+    return render_template('dashboard.html', figs_html=figs_html, metrics=metrics)
 
 if __name__ == '__main__':
-    # For local development, run with debug mode.
-    print("RUNNING UPDATED APP.PY!")
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
