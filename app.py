@@ -40,7 +40,9 @@ def get_fred_data(series_id, start_date, end_date):
     today_str = datetime.today().strftime('%Y-%m-%d')
     today = datetime.strptime(today_str, '%Y-%m-%d')
     desired_end = datetime.strptime(end_date, '%Y-%m-%d')
-    realtime_end = "9999-12-31" if desired_end > today else today_str
+    # If the desired end date is in the future or today, use "9999-12-31"
+    realtime_end = "9999-12-31" if desired_end >= today else today_str
+
 
     url = (
         f'https://api.stlouisfed.org/fred/series/observations?'
