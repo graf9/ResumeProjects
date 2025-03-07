@@ -200,7 +200,7 @@ def create_figures(end_date):
         y='value',
         title='US M2 Money Stock',
         labels={'date': 'Date', 'value': 'M2 (Billions)'},
-        trendline='ols',
+        trendline=None,  # Explicitly disable trendline processing
         color_discrete_sequence=['#FF6692']
     )
     if not df_m2.empty:
