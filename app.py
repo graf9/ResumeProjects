@@ -161,7 +161,7 @@ def create_figures(end_date):
     # 5. INDPRO: Industrial Production (custom start: Sept 1997)
     indpro_start = CUSTOM_START_DATES.get("INDPRO", DEFAULT_START)
     df_indpro = get_fred_data('INDPRO', indpro_start, end_date)
-    # Change from a bar chart to a line chart for better mobile responsiveness
+    # Changed chart type to line chart for better mobile responsiveness and color updated
     fig_indpro = px.line(
         df_indpro,
         x='date',
@@ -169,7 +169,7 @@ def create_figures(end_date):
         title='US Industrial Production Index',
         labels={'date': 'Date', 'value': 'Industrial Production Index'},
         markers=True,
-        color_discrete_sequence=['#2F4F4F']  # Dark Slate Gray (darker tone)
+        color_discrete_sequence=['#2F4F4F']  # Dark Slate Gray
     )
     if not df_indpro.empty:
         max_indpro = df_indpro['value'].max()
@@ -279,7 +279,7 @@ def dashboard():
         metrics['Unemployment Rate'] = f"{df_unrate.iloc[-1]['value']:.1f}%"
 
     if not df_gdp.empty:
-        # Since GDP is already scaled to trillions in create_figures(), no extra division is needed.
+        # GDP is already scaled to trillions in create_figures()
         metrics['Real GDP'] = f"${df_gdp.iloc[-1]['value']:,.1f}T"
 
     if not df_cpi.empty:
@@ -289,7 +289,7 @@ def dashboard():
         metrics['Fed Funds Rate'] = f"{df_fed.iloc[-1]['value']:.2f}%"
 
     if not df_m2.empty:
-        # M2 is in billions; converting to trillions for display.
+        # Convert M2 from billions to trillions for display
         metrics['M2 Money Stock'] = f"${df_m2.iloc[-1]['value'] / 1000:,.1f}T"
 
     if not df_indpro.empty:
@@ -297,6 +297,8 @@ def dashboard():
 
     return render_template('dashboard.html', figs_html=figs_html, metrics=metrics)
 
+# In production, run with a WSGI server like Gunicorn (e.g., gunicorn app:app)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # Turn off debug mode for production
+    app.run(host='0.0.0.0', port=port)

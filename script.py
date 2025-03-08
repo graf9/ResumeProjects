@@ -15,6 +15,7 @@ from prophet import Prophet
 import requests
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import datetime
+import os
 
 app = Flask(__name__)
 
@@ -44,7 +45,7 @@ def get_fred_data(series_id):
 
         # Scale GDP and PCE from billions to trillions
         if series_id in ["GDP", "PCE"]:
-            df['value'] = df['value'] / 1000.0  # e.g., 30000 -> 30
+            df['value'] = df['value'] / 1000.0
 
         return df[['date', 'value']].dropna().sort_values('date')
     return pd.DataFrame()
@@ -72,7 +73,7 @@ def all_forecasts():
     global cached_forecasts
     today = datetime.date.today().isoformat()
 
-    # If we already fetched data today, use cache
+    # Use cache if data fetched today
     if cached_forecasts and cached_forecasts.get('date') == today:
         return jsonify(cached_forecasts["data"])
 
@@ -104,6 +105,7 @@ def home():
 def favicon():
     return "", 204
 
+# In production, run with a WSGI server like Gunicorn (e.g., gunicorn script:app)
 if __name__ == '__main__':
-    # Debug mode on for local development
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)

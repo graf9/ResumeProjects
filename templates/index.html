@@ -1,12 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Economic Forecast</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Recommender</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #74ABE2, #5563DE);
+      font-family: 'Roboto', sans-serif;
+      color: #333;
+    }
+    .container {
+      margin-top: 3rem;
+    }
+    .card {
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    .card-header {
+      background: #5563DE;
+      color: #fff;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+    .summary-text {
+      text-align: center;
+      font-size: 1rem;
+      color: #090909;
+      margin: 1rem 0;
+    }
+    .card-body {
+      background: #fff;
+      padding: 2rem;
+    }
+    .form-control {
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+    }
+    .btn-primary {
+      border-radius: 0.5rem;
+      background-color: #5563DE;
+      border: none;
+      font-weight: 700;
+      transition: background-color 0.3s;
+    }
+    .btn-primary:hover {
+      background-color: #4453c7;
+    }
+    .result-card {
+      margin-top: 2rem;
+      padding: 2rem;
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.5s ease;
+    }
+    .result-card.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .poster-img {
+      max-width: 150px;
+      border-radius: 0.5rem;
+      margin-right: 2rem;
+    }
+    .result-content {
+      flex: 1;
+      min-width: 250px;
+    }
+    .result-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #5563DE;
+    }
+    .result-text p {
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+    @media (max-width: 576px) {
+      .result-card {
+        flex-direction: column;
+        align-items: center;
+      }
+      .poster-img {
+        margin-right: 0;
+        margin-bottom: 1rem;
+      }
+      .result-content {
+        text-align: center;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Welcome to the AI Economic Forecast</h1>
-    <p>This is a placeholder page.</p>
+  <div class="container">
+    <!-- Form Card -->
+    <div class="card">
+      <div class="card-header">Movie Recommender</div>
+      <div class="card-body">
+        <p class="summary-text">
+          Enter two movies you enjoy, and we'll suggest one for your next movie night.
+        </p>
+        <form id="movieForm">
+          <div class="form-group">
+            <label for="movie1" class="form-label">First Movie</label>
+            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required>
+          </div>
+          <div class="form-group">
+            <label for="movie2" class="form-label">Second Movie</label>
+            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendation</button>
+        </form>
+      </div>
+    </div>
+    <!-- Result Card -->
+    <div id="result" class="result-card" style="display: none;">
+      <div id="resultPoster"></div>
+      <div class="result-content">
+        <h2 class="result-title"></h2>
+        <div class="result-text">
+          <p class="result-date"></p>
+          <p class="result-overview"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    document.getElementById('movieForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Reset previous results
+      const resultCard = document.getElementById('result');
+      resultCard.style.display = 'none';
+      resultCard.classList.remove('show');
+      resultCard.innerHTML = '';  // Clear previous content
+
+      // Re-create result card structure
+      resultCard.innerHTML = `
+        <div id="resultPoster"></div>
+        <div class="result-content">
+          <h2 class="result-title"></h2>
+          <div class="result-text">
+            <p class="result-date"></p>
+            <p class="result-overview"></p>
+          </div>
+        </div>
+      `;
+      
+      const movie1 = document.getElementById('movie1').value;
+      const movie2 = document.getElementById('movie2').value;
+
+      fetch('/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ movies: [movie1, movie2] })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          resultCard.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+          resultCard.style.display = 'block';
+        } else {
+          const resultPoster = document.getElementById('resultPoster');
+          resultPoster.innerHTML = data.poster_url ? `<img src="${data.poster_url}" alt="Poster" class="poster-img">` : "";
+          document.querySelector('.result-title').textContent = data.title;
+          document.querySelector('.result-date').innerHTML = `<strong>Release Date:</strong> ${data.release_date}`;
+          document.querySelector('.result-overview').innerHTML = `<strong>Overview:</strong> ${data.overview}`;
+          resultCard.style.display = 'flex';
+          setTimeout(() => resultCard.classList.add('show'), 50);
+        }
+      })
+      .catch(err => {
+        resultCard.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+        resultCard.style.display = 'block';
+      });
+    });
+  </script>
 </body>
 </html>
