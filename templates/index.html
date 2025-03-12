@@ -41,7 +41,7 @@
       background: #fff;
       padding: 2rem;
     }
-    .form-control {
+    .form-control, .form-select {
       border-radius: 0.5rem;
       border: 1px solid #ccc;
     }
@@ -111,9 +111,9 @@
       <div class="card-header">Movie Recommender</div>
       <div class="card-body">
         <p class="summary-text">
-          Enter two movies you enjoy, and we'll suggest one for your next movie night.
+          Enter two movies you enjoy along with your preferences to get a tailored movie recommendation.
         </p>
-        <form id="movieForm">
+        <form id="preferenceForm">
           <div class="form-group">
             <label for="movie1" class="form-label">First Movie</label>
             <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required>
@@ -121,6 +121,46 @@
           <div class="form-group">
             <label for="movie2" class="form-label">Second Movie</label>
             <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required>
+          </div>
+          <div class="form-group">
+            <label for="genre" class="form-label">Preferred Genre (Optional)</label>
+            <select class="form-control" id="genre">
+              <option value="">Any</option>
+              <option value="Action">Action</option>
+              <option value="Adventure">Adventure</option>
+              <option value="Animation">Animation</option>
+              <option value="Comedy">Comedy</option>
+              <option value="Crime">Crime</option>
+              <option value="Documentary">Documentary</option>
+              <option value="Drama">Drama</option>
+              <option value="Family">Family</option>
+              <option value="Fantasy">Fantasy</option>
+              <option value="History">History</option>
+              <option value="Horror">Horror</option>
+              <option value="Music">Music</option>
+              <option value="Mystery">Mystery</option>
+              <option value="Romance">Romance</option>
+              <option value="Science Fiction">Science Fiction</option>
+              <option value="TV Movie">TV Movie</option>
+              <option value="Thriller">Thriller</option>
+              <option value="War">War</option>
+              <option value="Western">Western</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Release Year Range (Optional)</label>
+            <div class="d-flex">
+              <input type="number" class="form-control mr-2" id="min_year" placeholder="Min Year" min="1900" max="2100">
+              <input type="number" class="form-control" id="max_year" placeholder="Max Year" min="1900" max="2100">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="rating_threshold" class="form-label">Minimum Rating</label>
+            <input type="number" step="0.1" class="form-control" id="rating_threshold" placeholder="e.g., 7.0" value="7.0">
+          </div>
+          <div class="form-group">
+            <label for="runtime" class="form-label">Preferred Runtime (minutes, Optional)</label>
+            <input type="number" class="form-control" id="runtime" placeholder="e.g., 120">
           </div>
           <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendation</button>
         </form>
@@ -143,7 +183,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script>
-    document.getElementById('movieForm').addEventListener('submit', function(e) {
+    document.getElementById('preferenceForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       // Reset previous results
@@ -164,13 +204,29 @@
         </div>
       `;
       
+      // Gather form values
       const movie1 = document.getElementById('movie1').value;
       const movie2 = document.getElementById('movie2').value;
+      const genre = document.getElementById('genre').value;
+      const min_year = document.getElementById('min_year').value;
+      const max_year = document.getElementById('max_year').value;
+      const rating_threshold = document.getElementById('rating_threshold').value;
+      const runtime = document.getElementById('runtime').value;
+
+      // Prepare data payload; movies field is an array of two movie titles.
+      const dataPayload = {
+        movies: [movie1, movie2],
+        genre,
+        min_year: min_year ? parseInt(min_year) : null,
+        max_year: max_year ? parseInt(max_year) : null,
+        rating_threshold: rating_threshold ? parseFloat(rating_threshold) : 7.0,
+        runtime: runtime ? parseInt(runtime) : null
+      };
 
       fetch('/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ movies: [movie1, movie2] })
+        body: JSON.stringify(dataPayload)
       })
       .then(response => response.json())
       .then(data => {
@@ -185,6 +241,7 @@
           document.querySelector('.result-overview').innerHTML = `<strong>Overview:</strong> ${data.overview}`;
           resultCard.style.display = 'flex';
           setTimeout(() => resultCard.classList.add('show'), 50);
+          // The form inputs are not reset here so that the user can adjust and click again.
         }
       })
       .catch(err => {
