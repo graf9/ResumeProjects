@@ -19,7 +19,7 @@ kiwisolver==1.4.7
 MarkupSafe==3.0.2
 matplotlib==3.9.4
 narwhals==1.29.0
-numpy==1.21.6       # Changed from 2.2.3 to a stable version
+numpy==1.23.5
 packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
