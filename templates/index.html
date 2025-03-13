@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Movie Recommender</title>
+  <title>ReelGenie 3000</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
   <!-- Google Fonts -->
@@ -34,7 +34,7 @@
     .summary-text {
       text-align: center;
       font-size: 1rem;
-      color: #090909;
+      color: #000;
       margin: 1rem 0;
     }
     .card-body {
@@ -56,51 +56,16 @@
       background-color: #4453c7;
     }
     .result-card {
-      margin-top: 2rem;
-      padding: 2rem;
+      margin-bottom: 1rem;
+      padding: 1rem;
       background: #fff;
       border-radius: 1rem;
       box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-      display: flex;
-      align-items: center;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.5s ease;
-    }
-    .result-card.show {
-      opacity: 1;
-      transform: translateY(0);
     }
     .poster-img {
       max-width: 150px;
       border-radius: 0.5rem;
-      margin-right: 2rem;
-    }
-    .result-content {
-      flex: 1;
-      min-width: 250px;
-    }
-    .result-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #5563DE;
-    }
-    .result-text p {
-      margin-top: 1rem;
-      line-height: 1.5;
-    }
-    @media (max-width: 576px) {
-      .result-card {
-        flex-direction: column;
-        align-items: center;
-      }
-      .poster-img {
-        margin-right: 0;
-        margin-bottom: 1rem;
-      }
-      .result-content {
-        text-align: center;
-      }
+      margin-right: 1rem;
     }
   </style>
 </head>
@@ -108,11 +73,16 @@
   <div class="container">
     <!-- Form Card -->
     <div class="card">
-      <div class="card-header">Movie Recommender</div>
+      <div class="card-header">ReelGenie 3000</div>
       <div class="card-body">
         <p class="summary-text">
-          Enter two movies you enjoy along with your preferences to get a tailored movie recommendation.
+          Enter three movies you enjoy, and we'll suggest two for your next movie night!
         </p>
+        
+        <p class="summary-text">
+          You can click the "Get Recommendations" button as many times as you want for different results!
+        </p>
+        
         <form id="preferenceForm">
           <div class="form-group">
             <label for="movie1" class="form-label">First Movie</label>
@@ -122,6 +92,11 @@
             <label for="movie2" class="form-label">Second Movie</label>
             <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required>
           </div>
+          <div class="form-group">
+            <label for="movie3" class="form-label">Third Movie</label>
+            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required>
+          </div>
+          <!-- Optional Preferences -->
           <div class="form-group">
             <label for="genre" class="form-label">Preferred Genre (Optional)</label>
             <select class="form-control" id="genre">
@@ -148,7 +123,10 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Release Year Range (Optional)</label>
+            <label class="form-label">
+              Release Year Range (Optional)
+              <small class="text-muted">(Default: Last 40 years)</small>
+            </label>
             <div class="d-flex">
               <input type="number" class="form-control mr-2" id="min_year" placeholder="Min Year" min="1900" max="2100">
               <input type="number" class="form-control" id="max_year" placeholder="Max Year" min="1900" max="2100">
@@ -156,70 +134,52 @@
           </div>
           <div class="form-group">
             <label for="rating_threshold" class="form-label">Minimum Rating</label>
-            <input type="number" step="0.1" class="form-control" id="rating_threshold" placeholder="e.g., 7.0" value="7.0">
+            <input type="number" step="0.1" class="form-control" id="rating_threshold" placeholder="e.g., 6.5" value="6.5">
           </div>
           <div class="form-group">
             <label for="runtime" class="form-label">Preferred Runtime (minutes, Optional)</label>
             <input type="number" class="form-control" id="runtime" placeholder="e.g., 120">
           </div>
-          <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendation</button>
+          <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendations</button>
         </form>
       </div>
     </div>
-    <!-- Result Card -->
-    <div id="result" class="result-card" style="display: none;">
-      <div id="resultPoster"></div>
-      <div class="result-content">
-        <h2 class="result-title"></h2>
-        <div class="result-text">
-          <p class="result-date"></p>
-          <p class="result-overview"></p>
-        </div>
-      </div>
-    </div>
+    <!-- Results Container -->
+    <div id="resultContainer" class="mt-4"></div>
   </div>
 
-  <!-- Bootstrap JS -->
+  <!-- Bootstrap JS and jQuery -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script>
+    // NEW: Reset the form whenever the page is loaded/refreshed
+    document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById('preferenceForm').reset();
+    });
+
     document.getElementById('preferenceForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
-      // Reset previous results
-      const resultCard = document.getElementById('result');
-      resultCard.style.display = 'none';
-      resultCard.classList.remove('show');
-      resultCard.innerHTML = '';  // Clear previous content
+      const resultContainer = document.getElementById('resultContainer');
+      resultContainer.style.display = 'none';
+      resultContainer.innerHTML = ''; // Clear previous results
 
-      // Re-create result card structure
-      resultCard.innerHTML = `
-        <div id="resultPoster"></div>
-        <div class="result-content">
-          <h2 class="result-title"></h2>
-          <div class="result-text">
-            <p class="result-date"></p>
-            <p class="result-overview"></p>
-          </div>
-        </div>
-      `;
-      
       // Gather form values
       const movie1 = document.getElementById('movie1').value;
       const movie2 = document.getElementById('movie2').value;
+      const movie3 = document.getElementById('movie3').value;
       const genre = document.getElementById('genre').value;
       const min_year = document.getElementById('min_year').value;
       const max_year = document.getElementById('max_year').value;
       const rating_threshold = document.getElementById('rating_threshold').value;
       const runtime = document.getElementById('runtime').value;
 
-      // Prepare data payload; movies field is an array of two movie titles.
       const dataPayload = {
-        movies: [movie1, movie2],
-        genre,
+        movies: [movie1, movie2, movie3],
+        genre: genre,
         min_year: min_year ? parseInt(min_year) : null,
         max_year: max_year ? parseInt(max_year) : null,
-        rating_threshold: rating_threshold ? parseFloat(rating_threshold) : 7.0,
+        rating_threshold: rating_threshold ? parseFloat(rating_threshold) : 6.5,
         runtime: runtime ? parseInt(runtime) : null
       };
 
@@ -231,22 +191,39 @@
       .then(response => response.json())
       .then(data => {
         if (data.error) {
-          resultCard.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-          resultCard.style.display = 'block';
+          resultContainer.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+          resultContainer.style.display = 'block';
         } else {
-          const resultPoster = document.getElementById('resultPoster');
-          resultPoster.innerHTML = data.poster_url ? `<img src="${data.poster_url}" alt="Poster" class="poster-img">` : "";
-          document.querySelector('.result-title').textContent = data.title;
-          document.querySelector('.result-date').innerHTML = `<strong>Release Date:</strong> ${data.release_date}`;
-          document.querySelector('.result-overview').innerHTML = `<strong>Overview:</strong> ${data.overview}`;
-          resultCard.style.display = 'flex';
-          setTimeout(() => resultCard.classList.add('show'), 50);
-          // The form inputs are not reset here so that the user can adjust and click again.
+          let html = '<div class="row">';
+          data.recommendations.forEach(rec => {
+            html += `
+              <div class="col-md-6">
+                <div class="card result-card mb-3">
+                  <div class="row no-gutters">
+                    <div class="col-md-4">
+                      ${rec.poster_url ? `<img src="${rec.poster_url}" alt="Poster" class="img-fluid poster-img">` : ''}
+                    </div>
+                    <div class="col-md-8">
+                      <div class="card-body">
+                        <h5 class="card-title">${rec.title}</h5>
+                        <p class="card-text"><small class="text-muted">${rec.reasons}</small></p>
+                        <p class="card-text"><strong>Release Date:</strong> ${rec.release_date}</p>
+                        <p class="card-text"><strong>Overview:</strong> ${rec.overview}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          html += '</div>';
+          resultContainer.innerHTML = html;
+          resultContainer.style.display = 'block';
         }
       })
       .catch(err => {
-        resultCard.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
-        resultCard.style.display = 'block';
+        resultContainer.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+        resultContainer.style.display = 'block';
       });
     });
   </script>
