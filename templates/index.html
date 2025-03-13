@@ -13,8 +13,7 @@
       background: linear-gradient(135deg, #74ABE2, #5563DE);
       font-family: 'Roboto', sans-serif;
       color: #333;
-      /* Extra bottom padding to allow scrolling above keyboard on mobile */
-      margin-bottom: 200px;
+      margin-bottom: 200px; /* extra bottom space for mobile scrolling */
     }
     .container {
       margin-top: 3rem;
@@ -69,6 +68,36 @@
       border-radius: 0.5rem;
       margin-bottom: 1rem;
     }
+    /* Custom suggestions container styling */
+    .suggestions {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      z-index: 1000;
+      width: 100%;
+      max-height: 250px;
+      overflow-y: auto;
+      display: none;
+    }
+    .suggestion-item {
+      padding: 8px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+    .suggestion-item:hover {
+      background-color: #f0f0f0;
+    }
+    .suggestion-title {
+      font-weight: 700;
+      display: block;
+    }
+    .suggestion-extra {
+      font-size: 0.85rem;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -81,30 +110,30 @@
           Enter three movies you enjoy, and we'll suggest two for your next movie night!
         </p>
         <p class="summary-text">
-          Please verify the movie titles by selecting the correct suggestion (which includes the release year).
+          Please verify the movie titles by selecting the correct suggestion (now with rating & short overview).
         </p>
         <p class="summary-text">
           You can click the "Get Recommendations" button as many times as you want for different results!
         </p>
-        <!-- Set autocomplete="off" on the form and inputs -->
+        <!-- Each input container is positioned relative for absolute positioning of suggestions -->
         <form id="preferenceForm" autocomplete="off">
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label for="movie1" class="form-label">First Movie</label>
             <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required 
-                   list="movie1-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-            <datalist id="movie1-list"></datalist>
+                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <div id="movie1-suggestions" class="suggestions"></div>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label for="movie2" class="form-label">Second Movie</label>
             <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required 
-                   list="movie2-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-            <datalist id="movie2-list"></datalist>
+                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <div id="movie2-suggestions" class="suggestions"></div>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label for="movie3" class="form-label">Third Movie</label>
             <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required 
-                   list="movie3-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-            <datalist id="movie3-list"></datalist>
+                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <div id="movie3-suggestions" class="suggestions"></div>
           </div>
           <!-- Optional Preferences -->
           <div class="form-group">
@@ -175,34 +204,66 @@
       return data.results || [];
     }
 
-    // Attach auto-complete event listeners with release year display and clean-up on change
+    // Attach custom auto-complete event listeners
     ["movie1", "movie2", "movie3"].forEach(id => {
       const input = document.getElementById(id);
-      const datalist = document.getElementById(id + "-list");
+      const suggestionContainer = document.getElementById(id + "-suggestions");
 
       input.addEventListener("input", async function() {
-        const query = input.value;
+        const query = input.value.trim();
         if (query.length < 3) {
-          datalist.innerHTML = "";
+          suggestionContainer.innerHTML = "";
+          suggestionContainer.style.display = "none";
           return;
         }
         const suggestions = await fetchMovieSuggestions(query);
-        datalist.innerHTML = suggestions.map(s => {
-          let year = s.release_date ? s.release_date.slice(0, 4) : "";
-          let displayText = s.title;
-          if (year) {
-            displayText += " (" + year + ")";
-          }
-          return `<option value="${displayText}">`;
-        }).join("");
+        if (suggestions.length > 0) {
+          // Build the suggestion list with extra details
+          suggestionContainer.innerHTML = suggestions.map(s => {
+            const year = s.release_date ? s.release_date.slice(0, 4) : "Unknown";
+            const rating = s.vote_average ? s.vote_average.toFixed(1) : "N/A";
+            let shortOverview = s.overview ? s.overview.substring(0, 60) : "";
+            if (shortOverview.length === 60) {
+              shortOverview += "...";
+            }
+            // If original_title is different, display it
+            let titleLine = s.title;
+            if (s.original_title && s.original_title !== s.title) {
+              titleLine += ` / ${s.original_title}`;
+            }
+            return `
+              <div class="suggestion-item" data-title="${s.title}">
+                <span class="suggestion-title">${titleLine} (${year})</span>
+                <span class="suggestion-extra">
+                  Rating: ${rating} | ${shortOverview}
+                </span>
+              </div>
+            `;
+          }).join("");
+          suggestionContainer.style.display = "block";
+        } else {
+          suggestionContainer.innerHTML = "";
+          suggestionContainer.style.display = "none";
+        }
       });
 
-      input.addEventListener("change", function() {
-        // Remove the release year from the input value so only the movie title is sent
-        input.value = input.value.replace(/\s*\(\d{4}\)$/, "");
+      // Hide suggestions on blur (with delay to allow click)
+      input.addEventListener("blur", function() {
+        setTimeout(() => {
+          suggestionContainer.style.display = "none";
+        }, 200);
       });
 
-      // Scroll the input into view on focus for mobile devices
+      // Clicking a suggestion sets the input to that movie's title
+      suggestionContainer.addEventListener("click", function(e) {
+        if (e.target && e.target.closest(".suggestion-item")) {
+          const item = e.target.closest(".suggestion-item");
+          input.value = item.getAttribute("data-title");
+          suggestionContainer.style.display = "none";
+        }
+      });
+
+      // Scroll input into view on focus for mobile
       input.addEventListener("focus", function() {
         input.scrollIntoView({ behavior: "smooth", block: "center" });
       });
