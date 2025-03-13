@@ -45,7 +45,7 @@
       color: #333;
     }
 
-    /* Chart layout: maintains original format */
+    /* Chart layout: two charts per row on large screens */
     .chart-container {
       display: flex;
       flex-wrap: wrap;
@@ -56,11 +56,11 @@
       padding: 0 10px 20px;
     }
     .chart-item {
-      width: 48%; /* Keep two charts per row */
+      width: 48%;
       background: #ffffff;
       border-radius: 6px;
       box-shadow: 0 2px 3px rgba(0,0,0,0.1);
-      padding: 8px; /* Reduced padding for less white space */
+      padding: 8px;
       box-sizing: border-box;
     }
     .chart-item h2 {
@@ -77,7 +77,7 @@
         grid-template-columns: 1fr;
       }
       .chart-item {
-        width: 100%; /* Stack charts vertically on smaller screens */
+        width: 100%;
       }
     }
   </style>
@@ -91,7 +91,8 @@
     {% for key, value in metrics.items() %}
     <div class="metric-card">
       <h3>{{ key }}</h3>
-      <p>{{ value }}</p>
+      <!-- Use 'safe' so that <br> and <small> tags are rendered -->
+      <p>{{ value|safe }}</p>
     </div>
     {% endfor %}
   </div>
