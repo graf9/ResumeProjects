@@ -110,29 +110,26 @@
           Enter three movies you enjoy, and we'll suggest two for your next movie night!
         </p>
         <p class="summary-text">
-          Please verify the movie titles by selecting the correct suggestion (now with rating & short overview).
+          Please verify the movie titles by selecting the correct suggestion (which includes the release year and extra details).
         </p>
         <p class="summary-text">
           You can click the "Get Recommendations" button as many times as you want for different results!
         </p>
-        <!-- Each input container is positioned relative for absolute positioning of suggestions -->
+        <!-- Each input container is positioned relative for custom dropdown -->
         <form id="preferenceForm" autocomplete="off">
           <div class="form-group" style="position: relative;">
             <label for="movie1" class="form-label">First Movie</label>
-            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required 
-                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <div id="movie1-suggestions" class="suggestions"></div>
           </div>
           <div class="form-group" style="position: relative;">
             <label for="movie2" class="form-label">Second Movie</label>
-            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required 
-                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <div id="movie2-suggestions" class="suggestions"></div>
           </div>
           <div class="form-group" style="position: relative;">
             <label for="movie3" class="form-label">Third Movie</label>
-            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required 
-                   autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <div id="movie3-suggestions" class="suggestions"></div>
           </div>
           <!-- Optional Preferences -->
@@ -179,7 +176,7 @@
             <label for="runtime" class="form-label">Preferred Runtime (minutes, Optional)</label>
             <input type="number" class="form-control" id="runtime" placeholder="e.g., 120" autocomplete="off">
           </div>
-          <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendations</button>
+          <button type="submit" id="submitBtn" class="btn btn-primary btn-block mt-3">Get Recommendations</button>
         </form>
       </div>
     </div>
@@ -204,7 +201,7 @@
       return data.results || [];
     }
 
-    // Attach custom auto-complete event listeners
+    // Attach custom auto-complete event listeners with extended details
     ["movie1", "movie2", "movie3"].forEach(id => {
       const input = document.getElementById(id);
       const suggestionContainer = document.getElementById(id + "-suggestions");
@@ -218,7 +215,6 @@
         }
         const suggestions = await fetchMovieSuggestions(query);
         if (suggestions.length > 0) {
-          // Build the suggestion list with extra details
           suggestionContainer.innerHTML = suggestions.map(s => {
             const year = s.release_date ? s.release_date.slice(0, 4) : "Unknown";
             const rating = s.vote_average ? s.vote_average.toFixed(1) : "N/A";
@@ -226,7 +222,6 @@
             if (shortOverview.length === 60) {
               shortOverview += "...";
             }
-            // If original_title is different, display it
             let titleLine = s.title;
             if (s.original_title && s.original_title !== s.title) {
               titleLine += ` / ${s.original_title}`;
@@ -234,9 +229,7 @@
             return `
               <div class="suggestion-item" data-title="${s.title}">
                 <span class="suggestion-title">${titleLine} (${year})</span>
-                <span class="suggestion-extra">
-                  Rating: ${rating} | ${shortOverview}
-                </span>
+                <span class="suggestion-extra">Rating: ${rating} | ${shortOverview}</span>
               </div>
             `;
           }).join("");
@@ -254,7 +247,6 @@
         }, 200);
       });
 
-      // Clicking a suggestion sets the input to that movie's title
       suggestionContainer.addEventListener("click", function(e) {
         if (e.target && e.target.closest(".suggestion-item")) {
           const item = e.target.closest(".suggestion-item");
@@ -272,6 +264,10 @@
     // Form submission handler
     document.getElementById('preferenceForm').addEventListener('submit', function(e) {
       e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Loading...";
       
       const resultContainer = document.getElementById('resultContainer');
       resultContainer.style.display = 'none';
@@ -333,10 +329,14 @@
           resultContainer.innerHTML = html;
           resultContainer.style.display = 'block';
         }
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Get New Recommendations below";
       })
       .catch(err => {
         resultContainer.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
         resultContainer.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Get New Recommendations below";
       });
     });
   </script>
