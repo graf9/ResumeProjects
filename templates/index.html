@@ -13,6 +13,8 @@
       background: linear-gradient(135deg, #74ABE2, #5563DE);
       font-family: 'Roboto', sans-serif;
       color: #333;
+      /* Extra bottom padding to allow scrolling above keyboard on mobile */
+      margin-bottom: 200px;
     }
     .container {
       margin-top: 3rem;
@@ -84,20 +86,24 @@
         <p class="summary-text">
           You can click the "Get Recommendations" button as many times as you want for different results!
         </p>
+        <!-- Set autocomplete="off" on the form and inputs -->
         <form id="preferenceForm" autocomplete="off">
           <div class="form-group">
             <label for="movie1" class="form-label">First Movie</label>
-            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required list="movie1-list" autocomplete="off">
+            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required 
+                   list="movie1-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <datalist id="movie1-list"></datalist>
           </div>
           <div class="form-group">
             <label for="movie2" class="form-label">Second Movie</label>
-            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required list="movie2-list" autocomplete="off">
+            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required 
+                   list="movie2-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <datalist id="movie2-list"></datalist>
           </div>
           <div class="form-group">
             <label for="movie3" class="form-label">Third Movie</label>
-            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required list="movie3-list" autocomplete="off">
+            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required 
+                   list="movie3-list" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
             <datalist id="movie3-list"></datalist>
           </div>
           <!-- Optional Preferences -->
@@ -194,6 +200,11 @@
       input.addEventListener("change", function() {
         // Remove the release year from the input value so only the movie title is sent
         input.value = input.value.replace(/\s*\(\d{4}\)$/, "");
+      });
+
+      // Scroll the input into view on focus for mobile devices
+      input.addEventListener("focus", function() {
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     });
 
