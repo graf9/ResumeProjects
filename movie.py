@@ -69,6 +69,8 @@ def discover_movie_advanced(genre_filter, rating_threshold, date_range, runtime_
         params["with_runtime.lte"] = runtime_range[1]
     if language_filter:
         params["with_original_language"] = "en"
+    # Randomize the page parameter to spread out the results across the range
+    params["page"] = random.randint(1, 5)
     response = requests.get(url, params=params)
     return response.json().get("results", [])
 
@@ -79,7 +81,7 @@ def get_tmdb_recommendations(movie_id):
     return response.json().get("results", [])
 
 def recommend_movie(preferences):
-    # Expect three movie titles from user input
+    # Expect three movie titles from user input.
     movie_titles = preferences.get("movies", [])
     found_movies = []
     for title in movie_titles:
@@ -89,19 +91,18 @@ def recommend_movie(preferences):
     if len(found_movies) < 3:
         return None
 
+    # Compute common genre (for explanation purposes)
     computed_genre = get_common_genre_id(found_movies)
-    computed_avg_year = get_average_release_year(found_movies)
     
+    # Use user-provided genre if available; otherwise, use computed genre.
     user_genre = preferences.get("genre", "").strip().lower()
     genre_filter = REVERSE_GENRE_MAP.get(user_genre, computed_genre) if user_genre else computed_genre
 
-    min_year = preferences.get("min_year")
-    max_year = preferences.get("max_year")
-    if min_year and max_year:
+    # Use user-provided release year range if given; else, use the full default of the last 40 years.
+    if preferences.get("min_year") and preferences.get("max_year"):
+        min_year = int(preferences.get("min_year"))
+        max_year = int(preferences.get("max_year"))
         date_range = (f"{min_year}-01-01", f"{max_year}-12-31")
-    elif computed_avg_year:
-        yr_min, yr_max = get_year_range(computed_avg_year)
-        date_range = (f"{yr_min}-01-01", f"{yr_max}-12-31")
     else:
         current_year = datetime.now().year
         date_range = (f"{current_year-40}-01-01", f"{current_year}-12-31")
@@ -120,12 +121,12 @@ def recommend_movie(preferences):
 
     results = discover_movie_advanced(genre_filter, rating_threshold, date_range, runtime_range, language_filter=True)
     exclude_ids = {movie["id"] for movie in found_movies}
-
-    # Retrieve previously recommended movie IDs as a set from session
     all_rec_ids = set(session.get("all_rec_ids", []))
     filtered = [m for m in results if m["id"] not in exclude_ids and m["id"] not in all_rec_ids]
 
     current_year = datetime.now().year
+    # Aim for a midpoint roughly 20 years ago.
+    midpoint = current_year - 20
 
     def score_movie(rec):
         s = 0
@@ -145,14 +146,11 @@ def recommend_movie(preferences):
         if r_date:
             try:
                 year = int(r_date[:4])
-                if min_year and max_year:
-                    if min_year <= year <= max_year:
-                        s += 2
-                else:
-                    if current_year - 40 <= year <= current_year:
-                        s += 2
+                bonus = max(0, 5 - abs(year - midpoint) / 4)
+                s += bonus
             except:
                 pass
+        s += random.uniform(-1, 1)
         return s
 
     recommendations = []
@@ -202,29 +200,27 @@ def recommend_movie(preferences):
         r_date = rec.get("release_date", "")
         if r_date:
             try:
-                year = int(r_date[:4])
-                if min_year and max_year:
-                    if min_year <= year <= max_year:
-                        reasons.append(f"It was released in {year}, which is within your chosen timeframe.")
-                else:
-                    if current_year - 40 <= year <= current_year:
-                        reasons.append(f"It was released in {year}, aligning with the last 40 years of movies you enjoy.")
-            except:
-                pass
-
+                formatted_date = datetime.strptime(r_date, "%Y-%m-%d").strftime("%m-%d-%Y")
+            except Exception:
+                formatted_date = r_date
+        else:
+            formatted_date = "Unknown"
+        try:
+            year = int(r_date[:4])
+        except:
+            year = None
+        if year and not (preferences.get("min_year") and preferences.get("max_year")):
+            if current_year - 40 <= year <= current_year:
+                reasons.append(f"It was released in {year}, spanning the last 40 years.")
         rec_reasons = " ".join(reasons)
-        release_date = rec.get("release_date", "Unknown")
-        poster_path = rec.get("poster_path")
-        poster_url = f"{IMAGE_BASE_URL}{poster_path}" if poster_path else None
         formatted_recs.append({
             "title": rec.get("title", "No title"),
             "overview": rec.get("overview", "No overview available."),
-            "release_date": release_date,
-            "poster_url": poster_url,
+            "release_date": formatted_date,
+            "poster_url": f"{IMAGE_BASE_URL}{rec.get('poster_path')}" if rec.get("poster_path") else None,
             "reasons": rec_reasons
         })
     
-    # Update the session to accumulate all recommended movie IDs as a list
     all_rec_ids.update(rec.get("id") for rec in recommendations)
     session["all_rec_ids"] = list(all_rec_ids)
     session.modified = True
@@ -233,7 +229,6 @@ def recommend_movie(preferences):
 
 @app.route("/")
 def home():
-    # Reset all previously recommended movies on page refresh
     session.pop("all_rec_ids", None)
     return render_template("index.html")
 

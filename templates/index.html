@@ -65,7 +65,7 @@
     .poster-img {
       max-width: 150px;
       border-radius: 0.5rem;
-      margin-right: 1rem;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -78,28 +78,32 @@
         <p class="summary-text">
           Enter three movies you enjoy, and we'll suggest two for your next movie night!
         </p>
-        
+        <p class="summary-text">
+          Please verify the movie titles by selecting the correct suggestion (which includes the release year).
+        </p>
         <p class="summary-text">
           You can click the "Get Recommendations" button as many times as you want for different results!
         </p>
-        
-        <form id="preferenceForm">
+        <form id="preferenceForm" autocomplete="off">
           <div class="form-group">
             <label for="movie1" class="form-label">First Movie</label>
-            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required>
+            <input type="text" class="form-control" id="movie1" placeholder="Enter first movie" required list="movie1-list" autocomplete="off">
+            <datalist id="movie1-list"></datalist>
           </div>
           <div class="form-group">
             <label for="movie2" class="form-label">Second Movie</label>
-            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required>
+            <input type="text" class="form-control" id="movie2" placeholder="Enter second movie" required list="movie2-list" autocomplete="off">
+            <datalist id="movie2-list"></datalist>
           </div>
           <div class="form-group">
             <label for="movie3" class="form-label">Third Movie</label>
-            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required>
+            <input type="text" class="form-control" id="movie3" placeholder="Enter third movie" required list="movie3-list" autocomplete="off">
+            <datalist id="movie3-list"></datalist>
           </div>
           <!-- Optional Preferences -->
           <div class="form-group">
             <label for="genre" class="form-label">Preferred Genre (Optional)</label>
-            <select class="form-control" id="genre">
+            <select class="form-control" id="genre" autocomplete="off">
               <option value="">Any</option>
               <option value="Action">Action</option>
               <option value="Adventure">Adventure</option>
@@ -128,23 +132,23 @@
               <small class="text-muted">(Default: Last 40 years)</small>
             </label>
             <div class="d-flex">
-              <input type="number" class="form-control mr-2" id="min_year" placeholder="Min Year" min="1900" max="2100">
-              <input type="number" class="form-control" id="max_year" placeholder="Max Year" min="1900" max="2100">
+              <input type="number" class="form-control mr-2" id="min_year" placeholder="Min Year" min="1900" max="2100" autocomplete="off">
+              <input type="number" class="form-control" id="max_year" placeholder="Max Year" min="1900" max="2100" autocomplete="off">
             </div>
           </div>
           <div class="form-group">
             <label for="rating_threshold" class="form-label">Minimum Rating</label>
-            <input type="number" step="0.1" class="form-control" id="rating_threshold" placeholder="e.g., 6.5" value="6.5">
+            <input type="number" step="0.1" class="form-control" id="rating_threshold" placeholder="e.g., 6.5" value="6.5" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="runtime" class="form-label">Preferred Runtime (minutes, Optional)</label>
-            <input type="number" class="form-control" id="runtime" placeholder="e.g., 120">
+            <input type="number" class="form-control" id="runtime" placeholder="e.g., 120" autocomplete="off">
           </div>
           <button type="submit" class="btn btn-primary btn-block mt-3">Get Recommendations</button>
         </form>
       </div>
     </div>
-    <!-- Results Container -->
+    <!-- Combined Results Card -->
     <div id="resultContainer" class="mt-4"></div>
   </div>
 
@@ -152,19 +156,55 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script>
-    // NEW: Reset the form whenever the page is loaded/refreshed
+    // Reset the form on page load
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById('preferenceForm').reset();
     });
 
+    async function fetchMovieSuggestions(query) {
+      const apiKey = "61b80bde4829bb9a4632e96e4085be79";
+      const url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      return data.results || [];
+    }
+
+    // Attach auto-complete event listeners with release year display and clean-up on change
+    ["movie1", "movie2", "movie3"].forEach(id => {
+      const input = document.getElementById(id);
+      const datalist = document.getElementById(id + "-list");
+
+      input.addEventListener("input", async function() {
+        const query = input.value;
+        if (query.length < 3) {
+          datalist.innerHTML = "";
+          return;
+        }
+        const suggestions = await fetchMovieSuggestions(query);
+        datalist.innerHTML = suggestions.map(s => {
+          let year = s.release_date ? s.release_date.slice(0, 4) : "";
+          let displayText = s.title;
+          if (year) {
+            displayText += " (" + year + ")";
+          }
+          return `<option value="${displayText}">`;
+        }).join("");
+      });
+
+      input.addEventListener("change", function() {
+        // Remove the release year from the input value so only the movie title is sent
+        input.value = input.value.replace(/\s*\(\d{4}\)$/, "");
+      });
+    });
+
+    // Form submission handler
     document.getElementById('preferenceForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const resultContainer = document.getElementById('resultContainer');
       resultContainer.style.display = 'none';
-      resultContainer.innerHTML = ''; // Clear previous results
+      resultContainer.innerHTML = '';
 
-      // Gather form values
       const movie1 = document.getElementById('movie1').value;
       const movie2 = document.getElementById('movie2').value;
       const movie3 = document.getElementById('movie3').value;
@@ -194,29 +234,30 @@
           resultContainer.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
           resultContainer.style.display = 'block';
         } else {
-          let html = '<div class="row">';
+          let html = `
+            <div class="card result-card mb-3">
+              <div class="card-header text-center">Your Recommendations</div>
+              <div class="card-body">
+                <div class="row">
+          `;
           data.recommendations.forEach(rec => {
             html += `
               <div class="col-md-6">
-                <div class="card result-card mb-3">
-                  <div class="row no-gutters">
-                    <div class="col-md-4">
-                      ${rec.poster_url ? `<img src="${rec.poster_url}" alt="Poster" class="img-fluid poster-img">` : ''}
-                    </div>
-                    <div class="col-md-8">
-                      <div class="card-body">
-                        <h5 class="card-title">${rec.title}</h5>
-                        <p class="card-text"><small class="text-muted">${rec.reasons}</small></p>
-                        <p class="card-text"><strong>Release Date:</strong> ${rec.release_date}</p>
-                        <p class="card-text"><strong>Overview:</strong> ${rec.overview}</p>
-                      </div>
-                    </div>
-                  </div>
+                <div class="text-center mb-3">
+                  ${rec.poster_url ? `<img src="${rec.poster_url}" alt="Poster" class="img-fluid poster-img">` : ''}
                 </div>
+                <h5 class="text-center">${rec.title}</h5>
+                <p class="text-center"><small class="text-muted">${rec.reasons}</small></p>
+                <p class="text-center"><strong>Release Date:</strong> ${rec.release_date}</p>
+                <p class="text-justify"><strong>Overview:</strong> ${rec.overview}</p>
               </div>
             `;
           });
-          html += '</div>';
+          html += `
+                </div>
+              </div>
+            </div>
+          `;
           resultContainer.innerHTML = html;
           resultContainer.style.display = 'block';
         }
